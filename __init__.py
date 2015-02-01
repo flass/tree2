@@ -137,6 +137,40 @@ def read_nexus(nf, treeclass="Node", returnDict=True, translateLabels=True, getT
 		return dnexus
 	else:
 		return ltrees
+		
+def write_nexus(ltrees, nfout, ltax, dtranslate={}, ltreenames=[], **kw):
+	"""combine in one nexus file a collection of trees with the same set of taxa represented"""
+	if ltreenames: assert len(ltreenames)==len(ltrees)
+	if dtranslate:
+		assert len(dtranslate)==len(ltax)
+		assert isinstance(dtranslate.keys()[0], str)
+	fout = open(nfout, 'w')
+	fout.write('#NEXUS\n')
+	## taxa block
+	fout.write('begin taxa;\n\tdimensions ntax=%d;\n\t\ttaxlabels\n'%len(ltax))
+	for tax in ltax:
+		fout.write('\t\t%s\n'%tax)
+	else:
+		fout.write('\t\t;\nend;\n')
+	## trees block
+	fout.write('begin trees;\n')
+	if dtranslate:
+		fout.write('\ttranslate\n')
+		nums = [int(num) for num in dtranslate.keys()]
+		nums.sort()
+		for num in nums:
+			fout.write('\t\t%d\t%s,\n'%(num, dtranslate[str(num)]))
+		else:
+			fout.write('\t\t;\n')
+	# tree blocks
+	for k in range(len(ltrees)):
+		if ltreenames: treename = ltreenames[k]
+		else: treename = 'tree_%d'%k
+		fout.write('   tree %s = %s\n'%(treename, ltrees[k].newick(**kw)))
+	else:
+		fout.write('end;')
+	fout.close()
+			
 
 def write_to_file(s, nf, **kw):
 	"""Write a string (e.g. representing the Node in several formats) in $1 file.
@@ -168,6 +202,108 @@ def dump_pickle(genetree, nfile):
 	gtpickle = cPickle.Pickler(fpickle, 2)
 	gtpickle.dump(genetree)
 	fpickle.close()
+	
+#######################################################################
+########  XML Tree Format related functions
+
+def extract_XMLmarker(s, mark, ind="", mtype=""):
+	"""extracts the information nested in a XML marker from a XML string."""
+	if mtype:
+		marker = "%s type='%s'"%(mark, mtype)
+	else:
+		marker = mark
+	if s.startswith('%s<%s>'%(ind, marker)):
+		return s.split('<%s>'%marker)[-1].split('</%s>'%mark)[0]
+	else:
+		return None
+
+def concat_phyloxml(lnftree, nfout):
+	"""Concatenates phyloXML trees from list of file names 'lnftree' into file named 'nfout' """
+	lines = []
+	head = ""
+	tail = ""	
+	for nftree in lnftree:
+		ftree = open(nftree, 'r')
+		tree = ftree.readlines()
+		ftree.close()
+		if not (tree[0].startswith('<?') and tree[1].startswith('<phyloxml')):
+			raise SyntaxError, "Wrong syntax for phyloXML header:\n%s"%'\n'.join(tree[0:2])
+		head = tree[0:2]
+		if tree[-1]!='</phyloxml>':
+			raise SyntaxError, "Wrong syntax for phyloXML tail:\n%s"%tree[-1]
+		tail = tree[-1]
+		lines += tree[2:-1]	
+	fout = open(nfout, 'w')
+	fout.writelines(head)
+	fout.writelines(lines)
+	fout.write(tail)
+	fout.close()
+	
+def read_phyloXML(nfin, branch_lengths=True, keep_comments=False, ind="  ", indstart="\n"):
+	"""Reads the $1 file containing (multiple) tree(s) in PhyloXML format and builds the Node(s) from it.
+	
+	Returns a dictionary with keys as tree name strings and values as Nodes. 
+	"""
+	if type(nfin)==str:
+		f=open(nfin,'r')
+		s=f.read()
+		f.close()
+		l = s.split(indstart)
+	else:
+		raise ValueError, "Invalid file name."
+		
+	d = {}
+	start = 0
+	end = len(l)-1
+	while l[start].startswith('<?'):
+		start += 1
+	if l[start].startswith('<phyloxml'):
+		start += 1
+	else:
+		raise SyntaxError, "Invalid phyloXML syntax in file %s at line %d."%(nfin, start+1)
+	if l[end]=='</phyloxml>':
+		end -= 1
+	else:
+		raise SyntaxError, "Invalid phyloXML syntax in file %s at line %d."%(nfin, end+1)
+	
+	ntree = l.count('</phylogeny>')
+	for k in range(ntree):
+		treestart = start
+		treestop = l[start+1:].index('</phylogeny>') + start + 1
+		start = treestop+1
+		if l[treestart].startswith('<phylogeny'):
+			treestart += 1
+		else:
+			raise SyntaxError, "Invalid phyloXML syntax in file %s at line %d."%(nfin, treestart+1)	
+		name = extract_XMLmarker( l[treestart], 'name', ind)
+		if name:
+			treestart += 1
+		else:
+			name = str(k+1)
+		node = AnnotatedNode()
+		s = indstart.join(l[treestart:treestop])
+		node.parse_phyloXML(s=s, branch_lengths=branch_lengths, ind=ind, indstart=indstart+ind)
+		d[name] = node
+	return d
+	
+def write_phyloXML(dtrees, nfout, ind="  ", indstart="\n", normparams=None):
+	""" writes the tree in PhyloXML format, readable by Achaeopteryx (http://www.phylosoft.org/archaeopteryx/)"""
+	fout = open(nfout, 'w')
+	fout.write("<?xml version='1.0' encoding='UTF-8'?>%s<phyloxml xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:schemaLocation='http://www.phyloxml.org http://www.phyloxml.org/1.10/phyloxml.xsd' xmlns='http://www.phyloxml.org'>"%(indstart))
+	for name in dtrees:
+		fout.write("%s<phylogeny rooted='true'>"%indstart+ind)
+		fout.write("%s<name>%s</name>"%(indstart+ind,name))
+		if normparams:
+			fout.write(dtrees[name].phyloXML_norm(ind, indstart+ind*2, normparams))
+		else:
+			fout.write(dtrees[name].phyloXML(ind, indstart+ind*2))
+		fout.write("%s</phylogeny>"%indstart+ind)
+	fout.write("%s</phyloxml>"%indstart)
+	fout.close()	
+		
+def read_obo(nfobo):
+	"""reads in OBO XML file and parse OBO structure to make a tree of term hierarchy ([to be] developped for reading Gene Ontology [GO] terms hierarchy)"""
+
 
 ####################################
 ### External program call functions
@@ -247,6 +383,11 @@ def dNoverdS(dNtree, dStree, factor=3, ignoreThreshold=0.05, medianForIgnored=Tr
 #### functions dealing with multiple trees
 
 def concatMRP(treelist, boot_thresh=0.5, taxset=None, writeto=None, **kw):
+	"""generate a matrix representation of the trees, one line per bipartition.
+	
+	default coding: 0=absent from the tree, 1=present in the tree.
+	for use in Matrix Representation with Parsimony (MRP) inferences.
+	"""
 	if taxset:
 		lleaves = list(taxset)
 	else:

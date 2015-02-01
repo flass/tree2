@@ -19,6 +19,8 @@ Note that bracked delimited nested and unnested comments are ignored.
 
 Sequences can be assigned to each node for simulating evolution.
 
+Derived from module 'tree.py' from 'alfacinha' modules by Leonor Palmeira and Laurent Guéguen (http://pbil.univ-lyon1.fr/software/alfacinha/)
+
 Copyright 2007, Leonor Palmeira <palmeira@biomserv.univ-lyon1.fr>;
 Copyright 2013, Florent Lassalle <florent.lassalle@univ-lyon1.fr>.
 """
@@ -50,7 +52,7 @@ class Node(object):
 	(including leaves and root) make up for the whole tree.
 	"""
 
-	def __init__(self, branch_lengths=True, keep_comments=False, namesAsNum=False, leafNamesAsNum=False, **kw):
+	def __init__(self, branch_lengths=True, keep_comments=False, combrackets='[]', namesAsNum=False, leafNamesAsNum=False, **kw):
 		"""Create a Node.
 		
 		Keyword argument to build directly the Node from a Newick string: [newick=string].
@@ -68,10 +70,10 @@ class Node(object):
 		self.__children=[]			# list of child Node instances
 		if kw.has_key('newick'):
 			# read from a Newick string
-			self.parser(s=kw['newick'], branch_lengths=branch_lengths, keep_comments=keep_comments, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+			self.parser(s=kw['newick'], branch_lengths=branch_lengths, combrackets=combrackets, keep_comments=keep_comments, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
 		elif kw.has_key('fic'):
 			# read from file containing a Newick string
-			self.read_nf(a=kw['fic'], branch_lengths=branch_lengths, keep_comments=keep_comments, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+			self.read_nf(a=kw['fic'], branch_lengths=branch_lengths, combrackets=combrackets, keep_comments=keep_comments, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
 		elif kw.has_key('lleaves'):
 			# generate multifurcated tree with all leaves with names in 'lleaves' attached to the root (self) node
 			for leaf in kw['lleaves']:
@@ -644,14 +646,14 @@ class Node(object):
 #####################################
 ############## file input methods:		
 	
-	def read_nf(self, a, branch_lengths=True, keep_comments=False, namesAsNum=False, leafNamesAsNum=False):
+	def read_nf(self, a, branch_lengths=True, keep_comments=False, combrackets='[]', namesAsNum=False, leafNamesAsNum=False):
 		"""Read the $1 file containing a unique tree in Newick format and builds the Node from it."""
 
 		if type(a)==str:
 			f=open(a,'r')
 			l=f.readline()
 			f.close()
-			self.parser(l, branch_lengths, keep_comments, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+			self.parser(l, branch_lengths, keep_comments, combrackets=combrackets, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
 		else:
 			raise ValueError, "Invalid file name."
 		return
@@ -2205,10 +2207,10 @@ class Node(object):
 			raise ValueError, "Missing ';' at end."
 		return s
 
-	def read_commented_lab(self, s, namesAsNum=False, leafNamesAsNum=False):
+	def read_commented_lab(self, s, combrackets='[]', namesAsNum=False, leafNamesAsNum=False):
 		"""deals with nested comments located next to labels"""
-		lbrack = s.find('[')
-		rbrack = s.find(']')
+		lbrack = s.find(combrackets[0])
+		rbrack = s.find(combrackets[1])
 		if lbrack==-1 and rbrack ==-1:
 			laboot = s			  # clean case, no bracketed comments
 		elif lbrack == 0:
@@ -2229,7 +2231,7 @@ class Node(object):
 					self.__lab = str(laboot)
 	
 
-	def _parser(self, s, branch_lengths=True, keep_comments=False, namesAsNum=False, leafNamesAsNum=False):
+	def _parser(self, s, branch_lengths=True, keep_comments=False, combrackets='[]', namesAsNum=False, leafNamesAsNum=False):
 		"""Should not be directly used. Use parser() instead."""
 		parenth=s.rfind(')')
 		# deal with tree structure
@@ -2255,7 +2257,7 @@ class Node(object):
 				self.__children+=[self.newnode()]
 				for j in self.__children:
 					j.__father=self
-				self.__children[len(self.__children)-1]._parser(child, branch_lengths=branch_lengths, keep_comments=keep_comments, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+				self.__children[len(self.__children)-1]._parser(child, branch_lengths=branch_lengths, keep_comments=keep_comments, combrackets=combrackets, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
 				#print "***********Going to the children*************"
 				i+=1
 		# annotate node
@@ -2271,11 +2273,11 @@ class Node(object):
 					try:
 						self.__boot=float(comlaboot)
 					except ValueError, e:
-						self.read_commented_lab(comlaboot, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+						self.read_commented_lab(comlaboot, namesAsNum=namesAsNum, combrackets=combrackets, leafNamesAsNum=leafNamesAsNum)
 				else:
-					self.read_commented_lab(comlaboot, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+					self.read_commented_lab(comlaboot, namesAsNum=namesAsNum, combrackets=combrackets, leafNamesAsNum=leafNamesAsNum)
 			elif (semicol==-1 and parenth!=-1):
-				self.read_commented_lab(s[parenth+1:], namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+				self.read_commented_lab(s[parenth+1:], namesAsNum=namesAsNum, combrackets=combrackets, leafNamesAsNum=leafNamesAsNum)
 			elif semicol==-1:
 				raise ValueError, "Incorrect syntax."
 		else:
@@ -2283,9 +2285,9 @@ class Node(object):
 				try:
 					self.__boot=float(s[parenth+1:])
 				except ValueError, e:
-					self.read_commented_lab(s[parenth+1:], namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+					self.read_commented_lab(s[parenth+1:], namesAsNum=namesAsNum, combrackets=combrackets, leafNamesAsNum=leafNamesAsNum)
 			else:
-				self.read_commented_lab(s[parenth+1:], namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+				self.read_commented_lab(s[parenth+1:], namesAsNum=namesAsNum, combrackets=combrackets, leafNamesAsNum=leafNamesAsNum)
 		
 		return
 		
@@ -2304,11 +2306,11 @@ class Node(object):
 					#~ try:
 						#~ self.__boot=float(comlaboot)
 					#~ except ValueError, e:
-						#~ self.read_commented_lab(comlaboot, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+						#~ self.read_commented_lab(comlaboot, namesAsNum=namesAsNum, combrackets=combrackets, leafNamesAsNum=leafNamesAsNum)
 				#~ else:
-					#~ self.read_commented_lab(comlaboot, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+					#~ self.read_commented_lab(comlaboot, namesAsNum=namesAsNum, combrackets=combrackets, leafNamesAsNum=leafNamesAsNum)
 			#~ elif (semicol==-1 and parenth!=-1):
-				#~ self.read_commented_lab(s[parenth+1:], namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+				#~ self.read_commented_lab(s[parenth+1:], namesAsNum=namesAsNum, combrackets=combrackets, leafNamesAsNum=leafNamesAsNum)
 			#~ elif semicol==-1:
 				#~ raise ValueError, "Incorrect syntax."
 		#~ else:
@@ -2316,9 +2318,9 @@ class Node(object):
 				#~ try:
 					#~ self.__boot=float(s[parenth+1:])
 				#~ except ValueError, e:
-					#~ self.read_commented_lab(s[parenth+1:], namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+					#~ self.read_commented_lab(s[parenth+1:], namesAsNum=namesAsNum, combrackets=combrackets, leafNamesAsNum=leafNamesAsNum)
 			#~ else:
-				#~ self.read_commented_lab(s[parenth+1:], namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+				#~ self.read_commented_lab(s[parenth+1:], namesAsNum=namesAsNum, combrackets=combrackets, leafNamesAsNum=leafNamesAsNum)
 				#~ 
 		#~ s=s[1:parenth] #eliminate external parenthesis
 		#~ x=0
@@ -2338,13 +2340,13 @@ class Node(object):
 				#~ self.__children+=[self.newnode()]
 				#~ for j in self.__children:
 					#~ j.__father=self
-				#~ self.__children[len(self.__children)-1]._parser(child, branch_lengths=branch_lengths, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+				#~ self.__children[len(self.__children)-1]._parser(child, branch_lengths=branch_lengths, combrackets=combrackets, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
 				#~ #print "***********Going to the children*************"
 				#~ i+=1
 #~ #		print self.bs(), self.comment(), self.lg()
 		#~ return
 	
-	def parser(self, s, branch_lengths=True, keep_comments=False, namesAsNum=False, leafNamesAsNum=False):
+	def parser(self, s, branch_lengths=True, keep_comments=False, combrackets='[]', namesAsNum=False, leafNamesAsNum=False):
 		"""Fill the Node's attributes from parsing $1 string.
 	
 		Follows the Newick standard for coding trees.
@@ -2369,7 +2371,7 @@ class Node(object):
 				#~ s += ":0" 
 			
 		if s:
-			self._parser(s, branch_lengths=branch_lengths, keep_comments=keep_comments, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+			self._parser(s, branch_lengths=branch_lengths, keep_comments=keep_comments, combrackets=combrackets, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
 			if branch_lengths and self==self.go_root():
 				self.__l = 0 # sets distance above root at 0.
 		else:
