@@ -34,16 +34,16 @@ Credit
 Usage
 -----
 
-To get started, you have to create a tee from a Newick string:
+To get started, you have to create a tree from a Newick string:
 
 ```python
 import tree2
-t=tree2.Node(newick="(Bovine:0.69395,(Gibbon:0.36079,(Orang:0.33636,(Gorilla:0.17147,(Chimp:0.19268, Human:0.11927)0.89:0.08386)0.94:0.06124)0.94:0.15057)0.90:0.54939,Mouse:1.21460)0.86:0.10;")
+t=tree2.Node(newick="(Bovine:0.69395,(Gibbon:0.36079,(Orang:0.33636,(Gorilla:0.17147,(Chimp:0.19268, Human:0.11927)0.89:0.08386)0.94:0.06124)0.94:0.15057)0.90:0.54939,Mouse:1.21460)0.86:0.10;") # typped in
 ```
 or
 ```python
 import tree
-t=tree2.Node(fic="tree.newick")
+t=tree2.Node(fic="tree.newick") # from a file
 ```
 
 Then you can verify your tree:
