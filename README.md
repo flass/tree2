@@ -57,13 +57,13 @@ t.seaview()
 Now you may want to find the clade that include all great ape species (the node representing their last common acestor) and label it accordingly:
 ```python
 ga = t.map_to_node(['Orang', 'Gorilla', 'Chimp', 'Human'])
-ga.edit_label('Apes')
+ga.edit_label('GreatApes')
 print t.newick(ignoreBS=True)
 t.seaview(ignoreBS=True)
 ```
 and then you can access the node instance through its label:
 ```python
-print t['Apes'].newick(ignoreBS=True)
+print t['GreatApes'].newick(ignoreBS=True)
 ```
 
 You may want to remove some species from your dataset while keeping the paroperties of the rest of the tree (notably consistent branch lengths and supports)
