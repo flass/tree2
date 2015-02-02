@@ -49,7 +49,7 @@ t=tree2.Node(newick="(Bovine:0.69395,(Gibbon:0.36079,(Orang:0.33636,(Gorilla:0.1
 or
 ```python
 import tree
-t=tree2.Node(fic="/path/to/tree.newick") # from a file
+t=tree2.Node(file="/path/to/tree.newick") # from a file
 ```
 
 Then you can print out your tree to verify it:
@@ -62,10 +62,17 @@ t.seaview()		# graphic representation
 You can now access its several attributes, globally or for specific nodes
 ```python
 t.get_leaf_labels()	# list of leaf labels
-o = t['Orang']		# access a node through its indexed label (must be unique)
-print o.label()		# node label
-print o.lg()		# length of the branch leading to the node (above the node)
-print o.bs()		# support of the branch
+h = t['Human']		# access a node through its indexed label (must be unique)
+h.label()		# node label
+h.lg()			# length of the branch leading to the node (above the node)
+f = h.go_father()	# the node's parent (Node object)
+f.bs()			# support of the parent branch
+c = f.get_children()	# the parent's direct children (list of Node objects)
+f.children_labels()	# their labels only
+# there are derivated methods that allow you to navigate in the tree too
+b = h.go_brother()	# brother node of a node ; only if the prent is bifurcated!
+r = h.go_root()		# root node of the tree
+r == t			# True
 ```
 
 You may want to find the clade that include all great ape species (the node representing their last common acestor) and label it accordingly:
@@ -83,19 +90,25 @@ print t['GreatApes'].newick(ignoreBS=True)
 You can iterate on the nodes of the tree:
 ```python
 # using iterator
-for n in t:
-  print n
+for n in t: print n.label()
+# or building a list of nodes, using different traversal orders
+ln0 = t.get_all_children() ; print [n.label() for n in ln0]		# pre-oder traversal (classic root-to-leaves exploration)
+ln1 = t.get_sorted_children(order=1) ; print [n.label() for n in ln1]	# ordered by decreasing depth (i.e. increasing node distance from root)
+ln2 = t.get_sorted_children(order=2) ; print [n.label() for n in ln2]		# post-oder traversal (exploration of each group of leaves, then the nodes above)
+```
 
 You may want to remove some species from your dataset while keeping the paroperties of the rest of the tree (notably consistent branch lengths and supports)
 
 ```python
-g = t.pop('Gorilla') # prune the Gorilla branch identified by its label
+o = t.pop('Orang') # prune the Orang branch identified by its label
+print o
 print t
-print g
+t.seaview(ignoreBS=True)
 ho = t.map_to_node(['Gorilla', 'Chimp', 'Human']) # identify the node of the Homininae clade
-h = t.pop(ho) # prune the Homininae branch identified by its obect reference
+hn = t.pop(ho) # prune the Homininae branch identified by its obect reference
 print t
-print h
+t.seaview(ignoreBS=True)
+print hn
 ```
 
 Many other features are accessible and editable, but for these please refer to the specific documentation of each function and class methods through *help()* function.

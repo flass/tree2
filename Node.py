@@ -88,18 +88,25 @@ class Node(object):
 		self.__comment=None 		# nested comment attached to Node
 		self.__father=None			# father Node instance
 		self.__children=[]			# list of child Node instances
-		if kw.has_key('newick') or kw.has_key('nwk'):
-			# read from a Newick string
-			self.parser(s=kw.get('newick', kw['nwk']), branch_lengths=branch_lengths, combrackets=combrackets, keep_comments=keep_comments, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
-		elif kw.has_key('file') or kw.has_key('fic'):
-			# read from file containing a Newick string
-			self.read_nf(a=kw.get('file', kw['fic']), branch_lengths=branch_lengths, combrackets=combrackets, keep_comments=keep_comments, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
-		elif kw.has_key('lleaves'):
-			# generate multifurcated tree with all leaves with names in 'lleaves' attached to the root (self) node
-			for leaf in kw['lleaves']:
-				c = self.newnode()
-				c.add_label(leaf)
-				self.link_child(c, newlen=0, newboot=0)
+		
+		for kwnwk in ['newick', 'nwk']:
+			if kwnwk in kw:
+				# read from a Newick string
+				self.parser(s=kw[kwnwk], branch_lengths=branch_lengths, combrackets=combrackets, keep_comments=keep_comments, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+				break
+		else:
+			for kwfic in ['file', 'fic']:
+				if kwfic in kw:
+					# read from file containing a Newick string
+					self.read_nf(a=kw[kwfic], branch_lengths=branch_lengths, combrackets=combrackets, keep_comments=keep_comments, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+					break
+			else:
+				if 'lleaves' in kw:
+					# generate multifurcated tree with all leaves with names in 'lleaves' attached to the root (self) node
+					for leaf in kw['lleaves']:
+						c = self.newnode()
+						c.add_label(leaf)
+						self.link_child(c, newlen=0, newboot=0)
 
 			
 #####################################################
@@ -981,19 +988,23 @@ class Node(object):
 			Out = stdout
 		else :
 			Out = open(out, 'a')
-		if not uncleBranches: uncleBranches = [0]
+		if not uncleBranches: uncleBranches = []
 		branchlength = self.go_root().max_leaf_depth()
-		lenpat = (max(uncleBranches))
-		pattern = ["	"]*(lenpat+2)
+		lenpat = max(uncleBranches+[0])
+		#~ print uncleBranches, lenpat, depth, branchlength, lastSon
+		pattern = ["    "]*(lenpat+2)
 		for branch in uncleBranches:
 			pattern[branch+1] = "|   "
-		Out.write( "".join(pattern)+'\n' )
+		spattern = "".join(pattern)+'\n'
+		if self.bs()!=None and not self.is_root():
+			spattern = spattern[:-3]+"%.2g\n"%self.bs()
+		Out.write( spattern )
 		if self.is_leaf():
 			Out.write( "".join(pattern[:-1])+"+----"+"----"*(branchlength-lenpat)+" "+self.label()+'\n' )
 			if not out=="print":
 				Out.close()
 		else:
-			Out.write( "".join(pattern[:-1])+"+---+"+"----"*(branchlength-lenpat)+" "+self.label()+'\n' )
+			Out.write( "".join(pattern[:-1])+"+"+"---+"*int(not self.is_root())+" - -"*(branchlength-lenpat)*int(bool(self.label()))+" "+self.label()+'\n' )
 			if not out=="print":
 				Out.close()
 			children = self.get_children()
