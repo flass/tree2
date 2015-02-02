@@ -10,11 +10,11 @@ Description
 
 It accomodates labelling of internal nodes (that can come handy in exploring species trees), with labels replacing support values:
 
-((SpeciesA[Phenotype1]:0.45,SpeciesB[Phenotype1]:0.42)Clade1:0.75,(SpeciesC[Phenotype1]:0.58,SpeciesD[Phenotype2]:0.85)Clade1:0.115, SpeciesE[Phenotype3]:0.50);
+((SpeciesA[Phenotype1]:0.45,SpeciesB[Phenotype1]:0.42)Clade1:0.75,(SpeciesC[Phenotype1]:0.58,SpeciesD[Phenotype2]:0.85)Clade2:0.115, SpeciesE[Phenotype3]:0.50);
 
-*Node* class include most of the methods for topology manipulation, like pruning, re-rooting, etc. that are inherited by descendant classes. It also includes the basic graphic representation of a tree through an external call to [SEAVIEW](http://doua.prabi.fr/software/seaview) program (exists as a standard Debian package).
+*Node* class methods are inherited by descendant classes and include most of the methods for topology manipulation, like pruning, re-rooting, etc. It also provides a method to vizualize instantly (from within the Python interpretter) a tree object using [SEAVIEW](http://doua.prabi.fr/software/seaview)'s basic graphic engine, an option that comes quite handy during code development to evaluate the properties of manipulated trees.
 
-Further annotations and handling of more complicated tree formats (NEXUS and phyloXML) is dealt be the [*AnnotatedNode*](https://github.com/flass/tree2/blob/master/AnnotatedNode.py) class. It notably includes extended attributes such as branch color, node ID and taxonomic ID. Export of an *AnnoatedNode* tree instance of information is supported without annotation loss by export in phyloXML format. it follows that it includes smarter graphic representation of a tree through an external call to [Archaeopterix](https://sites.google.com/site/cmzmasek/home/software/archaeopteryx) program.
+Further annotations and handling of more complicated tree formats (NEXUS and phyloXML) is dealt be the [*AnnotatedNode*](https://github.com/flass/tree2/blob/master/AnnotatedNode.py) class. It notably includes extended attributes such as branch color, node ID and taxonomic ID. Export of an *AnnoatedNode* tree instance of information is supported without annotation loss by export in phyloXML format. This allows smarter graphic representation of a tree through an external call to [Figtree](http://tree.bio.ed.ac.uk/software/figtree/) or [Archaeopteryx](https://sites.google.com/site/cmzmasek/home/software/archaeopteryx) programs.
 
 Based on *AnnoatedNode* are [*GeneTree*](https://github.com/flass/tree2/blob/master/GeneTree.py) and [*ReferenceTree*](https://github.com/flass/tree2/blob/master/ReferenceTree.py) classes, that are mostly enriched in methods for gene/species tree reconciliation procedures. These methods otfen require to involve both types of objects that represent the gene and species trees, respectively, and perform annotations on them given the output of the reconciliations, notably evolutionary events like gene duplication, horizontal gene transfer or gene loss.
 
@@ -24,6 +24,12 @@ Requirements
 
 This package was developped under LINUX but as it is pure Python (except for certain shell calls to external) it should run OK on other operating systems. It runs on Python version 2.(>=5).
 When installing, do not forget to update yout $PYTHONPATH environment variable.
+Optional programs can be installed for use through the API proveded by *tree2*:
+- **PhyML**, phylogenetic reconstruction - used for re-estimating branch length and supports after topological manipulations (download [here](http://www.atgc-montpellier.fr/phyml/binaries.php) or available as a standard Debian package)
+- **SeaView**, graphic platform for sequence alignment, tree reconstruction and vizualisation - used here only fore tree vizualisation (download [here](http://doua.prabi.fr/software/seaview) or available as a standard Debian package)
+- **Figtree**,  graphic representation of annotated phylogenetic trees, using NEXUS format (download [here](http://tree.bio.ed.ac.uk/software/figtree/) or available as a standard Debian package)
+- **Archaeopteryx**, graphic representation of richly annotated phylogenetic trees, using phyloXML format (download [here](https://sites.google.com/site/cmzmasek/home/software/archaeopteryx))
+- **Count**, parsimonious and ML estimation of gene gain/loss scenrios along a species tree given a phylogenetic profile (download [here](http://www.iro.umontreal.ca/~csuros/gene_content/count.html))
 
 Credit
 ------
