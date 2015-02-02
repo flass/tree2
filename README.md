@@ -49,28 +49,42 @@ t=tree2.Node(newick="(Bovine:0.69395,(Gibbon:0.36079,(Orang:0.33636,(Gorilla:0.1
 or
 ```python
 import tree
-t=tree2.Node(fic="tree.newick") # from a file
+t=tree2.Node(fic="/path/to/tree.newick") # from a file
 ```
 
-Then you can verify your tree:
+Then you can print out your tree to verify it:
 ```python
-t.get_leaf_labels()
-print t
-print t['Orang']
-t.seaview()
+print t			# standard Newick string representation
+t.arborescence_ASCII()	# hierarchical arborescence representation in text mode
+t.seaview()		# graphic representation
 ```
 
-Now you may want to find the clade that include all great ape species (the node representing their last common acestor) and label it accordingly:
+You can now access its several attributes, globally or for specific nodes
+```python
+t.get_leaf_labels()	# list of leaf labels
+o = t['Orang']		# access a node through its indexed label (must be unique)
+print o.label()		# node label
+print o.lg()		# length of the branch leading to the node (above the node)
+print o.bs()		# support of the branch
+```
+
+You may want to find the clade that include all great ape species (the node representing their last common acestor) and label it accordingly:
 ```python
 ga = t.map_to_node(['Orang', 'Gorilla', 'Chimp', 'Human'])
 ga.edit_label('GreatApes')
-print t.newick(ignoreBS=True)
+print t.newick(ignoreBS=True)	# ignore branch supports to display internal node labels
 t.seaview(ignoreBS=True)
 ```
 and then you can access the node instance through its label:
 ```python
 print t['GreatApes'].newick(ignoreBS=True)
 ```
+
+You can iterate on the nodes of the tree:
+```python
+# using iterator
+for n in t:
+  print n
 
 You may want to remove some species from your dataset while keeping the paroperties of the rest of the tree (notably consistent branch lengths and supports)
 
@@ -84,7 +98,7 @@ print t
 print h
 ```
 
-Many other features are accessible and editable, but for these please refer to the spefici docuentation of each function and class methods though *help()* function.
+Many other features are accessible and editable, but for these please refer to the specific documentation of each function and class methods through *help()* function.
 
 Need help?
 -----------

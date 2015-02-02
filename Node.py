@@ -47,18 +47,38 @@ import numpy as np
 class Node(object):
 	"""Node is the smallest unit of definition for a tree.
 
-	A Node is linked to its father-Node and its children-Nodes: it
-	defines a sub-tree for which it is the root. All connected Nodes
-	(including leaves and root) make up for the whole tree.
+	A Node instance is linked to its father-Node and its children-Nodes: 
+	it defines a sub-tree for which it is the root. 
+	Node instances are reccursively contained in their parents up to the 
+	tree root-Node, which is equivalent to the whole tree.
 	"""
 
 	def __init__(self, branch_lengths=True, keep_comments=False, combrackets='[]', namesAsNum=False, leafNamesAsNum=False, **kw):
 		"""Create a Node.
 		
-		Keyword argument to build directly the Node from a Newick string: [newick=string].
+		* Keyword argument to build directly the Node from a Newick string: [newick=string] or [nwk=string]
+		or from a file: [file=filepath] or [fic=filepath]
 		Examples of Newick format:
-		* '(Bovine:0.69395,(Gibbon:0.36079,(Orang:0.33636,(Gorilla:0.17147,(Chimp:0.19268,Human:0.11927):0.08386):0.06124):0.15057):0.54939,Mouse:1.21460):0.10;'
-		* '((A:0.1,B:0.2,C:0.1)ABCnode:0.2,(D:0.4,E:0.1)99:0.1);' 
+		- with branch length and leaf labels:
+		'(Bovine:0.69395,(Gibbon:0.36079,(Orang:0.33636,(Gorilla:0.17147,(Chimp:0.19268,Human:0.11927):0.08386):0.06124):0.15057):0.54939,Mouse:1.21460):0.10;'
+		- with branch length, leaf labels and branch supports:
+		'((SpeciesA:0.45,SpeciesB:0.42)0.84:0.75,(SpeciesC:0.58,SpeciesD:0.85)0.95:0.115,SpeciesE:0.50);'
+		- with branch length, leaf labels, branch supports and bracketted comments:
+		'((SpeciesA[Phenotype1]:0.45,SpeciesB[Phenotype1]:0.42)0.84[Phenotype1]:0.75,(SpeciesC[Phenotype1]:0.58,SpeciesD[Phenotype2]:0.85)0.95[Phenotype2]:0.115,SpeciesE[Phenotype3]:0.50);'
+		- with branch length, leaf labels, bracketted comments and internal labels instead of branch supports.
+		'((SpeciesA[Phenotype1]:0.45,SpeciesB[Phenotype1]:0.42)Clade1[Phenotype1]:0.75,(SpeciesC[Phenotype1]:0.58,SpeciesD[Phenotype2]:0.85)Clade2[Phenotype2]:0.115,SpeciesE[Phenotype3]:0.50);'
+		
+		* Default behaviour is to discard comments ; can be switched by specifying [keep_comments=True]. 
+		Characters used for comment brackets can be changed using [combrackets=charset] (avoid parenthesis !!!).
+		Bracketted comments can be located on either end of the label (or support for internal nodes), and these can be mixed:
+		'([Phenotype1]SpeciesC:0.58,[Phenotype2]SpeciesD:0.85);' <=> '(SpeciesC[Phenotype1]:0.58,SpeciesD[Phenotype2]:0.85);' <=> '(SpeciesC[Phenotype1]:0.58,[Phenotype2]SpeciesD:0.85);'
+		
+		* Numerals after a semicolon indicating branch lengths are expected for proper parsing, 
+		but in the absence of branch length information (cladogram), 
+		this default behavour can be changed by specifying [branch_lengths=False].
+		
+		* Leaf or internal node labels sometimes happen to be integers, as is the case of ClonalFrame trees (http://www.xavierdidelot.xtreemhost.com/clonalframe.htm).
+		Specify [namesAsNum=True] or [leafNamesAsNum=True] for adequate parsing of numeric labels at all nodes or leaf nodes only, respectively.
 		"""
 	
 		self.__l=None 				# length of the branch to the father-Node
@@ -68,12 +88,12 @@ class Node(object):
 		self.__comment=None 		# nested comment attached to Node
 		self.__father=None			# father Node instance
 		self.__children=[]			# list of child Node instances
-		if kw.has_key('newick'):
+		if kw.has_key('newick') or kw.has_key('nwk'):
 			# read from a Newick string
-			self.parser(s=kw['newick'], branch_lengths=branch_lengths, combrackets=combrackets, keep_comments=keep_comments, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
-		elif kw.has_key('fic'):
+			self.parser(s=kw.get('newick', kw['nwk']), branch_lengths=branch_lengths, combrackets=combrackets, keep_comments=keep_comments, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+		elif kw.has_key('file') or kw.has_key('fic'):
 			# read from file containing a Newick string
-			self.read_nf(a=kw['fic'], branch_lengths=branch_lengths, combrackets=combrackets, keep_comments=keep_comments, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+			self.read_nf(a=kw.get('file', kw['fic']), branch_lengths=branch_lengths, combrackets=combrackets, keep_comments=keep_comments, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
 		elif kw.has_key('lleaves'):
 			# generate multifurcated tree with all leaves with names in 'lleaves' attached to the root (self) node
 			for leaf in kw['lleaves']:
@@ -2212,14 +2232,18 @@ class Node(object):
 		lbrack = s.find(combrackets[0])
 		rbrack = s.find(combrackets[1])
 		if lbrack==-1 and rbrack ==-1:
-			laboot = s			  # clean case, no bracketed comments
+			# clean case, no bracketed comments
+			laboot = s
 		elif lbrack == 0:
+			# comment on the left side of string
 			self.__comment = s[lbrack+1:rbrack]
 			laboot = s[rbrack+1:]
 		elif rbrack == len(s)-1:
+			# comment on the right side of string
 			self.__comment = s[lbrack+1:rbrack]
 			laboot = s[0:lbrack]
 		else:
+			# comment in the middle, wrong syntax
 			raise ValueError, "You better clean your tree from comments"
 		if laboot:
 			if namesAsNum or (self.is_leaf() and leafNamesAsNum):
