@@ -138,20 +138,27 @@ def read_nexus(nf, treeclass="Node", returnDict=True, translateLabels=True, getT
 	else:
 		return ltrees
 		
-def write_nexus(ltrees, nfout, ltax, dtranslate={}, ltreenames=[], **kw):
+def write_nexus(ltrees, nfout, ltax, dtranslate={}, ltreenames=[], mode='w', onlytrees=False, **kw):
 	"""combine in one nexus file a collection of trees with the same set of taxa represented"""
 	if ltreenames: assert len(ltreenames)==len(ltrees)
 	if dtranslate:
 		assert len(dtranslate)==len(ltax)
 		assert isinstance(dtranslate.keys()[0], str)
-	fout = open(nfout, 'w')
-	fout.write('#NEXUS\n')
-	## taxa block
-	fout.write('begin taxa;\n\tdimensions ntax=%d;\n\t\ttaxlabels\n'%len(ltax))
-	for tax in ltax:
-		fout.write('\t\t%s\n'%tax)
+	if isinstance(nfout, file):
+		if nfout.mode==mode and not nfout.closed:
+			fout = nfout
+	elif os.path.exists(nfout):
+		fout = open(nfout, mode)
 	else:
-		fout.write('\t\t;\nend;\n')
+		raise ValueError, "output file argument is nor a valid path nor a file writeable in %s mode"%mode
+	if not onlytrees:
+		fout.write('#NEXUS\n')
+		## taxa block
+		fout.write('begin taxa;\n\tdimensions ntax=%d;\n\t\ttaxlabels\n'%len(ltax))
+		for tax in ltax:
+			fout.write('\t\t%s\n'%tax)
+		else:
+			fout.write('\t\t;\nend;\n')
 	## trees block
 	fout.write('begin trees;\n')
 	if dtranslate:

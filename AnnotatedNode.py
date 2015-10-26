@@ -154,13 +154,13 @@ class AnnotatedNode(tree2.Node):
 			treename = 'tree_1'
 		if figtree==True:
 			for node in outtree.get_all_children():
-				if node.bs() or node.color() or node.getEvents():
+				if node.bs() or node.color() or isinstance(node, tree2.GeneTree):
 					node.edit_comment('&')
 					if node.bs():
 						node.edit_comment('bootstrap = %f'%node.bs(), mode='append' )
 					if node.color():
 						node.edit_comment('!color = #%s'%hexstr(node.color()), mode='append' )
-					if node.getEvents():
+					if isinstance(node, tree2.GeneTree):
 						node.edit_comment('!events = %s'%str(node.getEvents()), mode='append' )
 		nex = '#NEXUS\nbegin taxa;\n\tdimensions ntax=%d;\n\ttaxlabels\n\t%s\n;\nend;\n'%( self.nb_leaves(), '\n\t'.join(self.get_leaf_labels(comments=True)) )
 		nex += '\nbegin trees;\n\ttree %s = [&R] %s\nend;\n'%(treename, outtree.newick(ignoreBS=ignoreBS, branch_lengths=branch_lengths, unrooted=unrooted))
@@ -249,9 +249,9 @@ class AnnotatedNode(tree2.Node):
 		fout.write("%s</phyloxml>"%indstart)
 		fout.close()
 		
-	def write_nexus(self, nfout, treename="", figtree=True, ignoreBS=False, branch_lengths=True, unrooted=False):
+	def write_nexus(self, nfout, treename="", figtree=True, ignoreBS=False, branch_lengths=True, unrooted=False, mode='w'):
 		""" writes the tree in NEXUS format, readable by FigTree (http://tree.bio.ed.ac.uk/software/figtree/)""" 
-		fouttree = open(nfout, 'w')
+		fouttree = open(nfout, mode)
 		fouttree.write(self.nexus(treename=treename, figtree=figtree, ignoreBS=ignoreBS, branch_lengths=branch_lengths, unrooted=unrooted) )
 		fouttree.close()	
 		

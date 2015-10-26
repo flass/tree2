@@ -53,7 +53,7 @@ class Node(object):
 	tree root-Node, which is equivalent to the whole tree.
 	"""
 
-	def __init__(self, branch_lengths=True, keep_comments=False, combrackets='[]', namesAsNum=False, leafNamesAsNum=False, **kw):
+	def __init__(self, branch_lengths=True, keep_comments=False, combrackets='[]', labquotes=False, namesAsNum=False, leafNamesAsNum=False, **kw):
 		"""Create a Node.
 		
 		* Keyword argument to build directly the Node from a Newick string: [newick=string] or [nwk=string]
@@ -92,13 +92,13 @@ class Node(object):
 		for kwnwk in ['newick', 'nwk']:
 			if kwnwk in kw:
 				# read from a Newick string
-				self.parser(s=kw[kwnwk], branch_lengths=branch_lengths, combrackets=combrackets, keep_comments=keep_comments, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+				self.parser(s=kw[kwnwk], branch_lengths=branch_lengths, combrackets=combrackets, labquotes=labquotes, keep_comments=keep_comments, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
 				break
 		else:
 			for kwfic in ['file', 'fic']:
 				if kwfic in kw:
 					# read from file containing a Newick string
-					self.read_nf(a=kw[kwfic], branch_lengths=branch_lengths, combrackets=combrackets, keep_comments=keep_comments, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+					self.read_nf(a=kw[kwfic], branch_lengths=branch_lengths, combrackets=combrackets, labquotes=labquotes, keep_comments=keep_comments, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
 					break
 			else:
 				if 'lleaves' in kw:
@@ -673,14 +673,14 @@ class Node(object):
 #####################################
 ############## file input methods:		
 	
-	def read_nf(self, a, branch_lengths=True, keep_comments=False, combrackets='[]', namesAsNum=False, leafNamesAsNum=False):
+	def read_nf(self, a, branch_lengths=True, keep_comments=False, combrackets='[]', labquotes=False, namesAsNum=False, leafNamesAsNum=False):
 		"""Read the $1 file containing a unique tree in Newick format and builds the Node from it."""
 
 		if type(a)==str:
 			f=open(a,'r')
 			l=f.readline()
 			f.close()
-			self.parser(l, branch_lengths, keep_comments, combrackets=combrackets, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+			self.parser(l, branch_lengths, keep_comments, combrackets=combrackets, labquotes=labquotes, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
 		else:
 			raise ValueError, "Invalid file name."
 		return
@@ -1476,7 +1476,7 @@ class Node(object):
 			if force:
 				si = si & ll
 			else:
-				raise IndexError, "Input leaf set is larger than leaves present in reference tree:\nsi: %s\nll: %s"%(str(si), str(ll))
+				raise IndexError, "Input leaf set is larger than leaves present in reference tree:\nsi: %r\nll: %r"%(si, ll)
 		if not si:
 			return None
 		clade = self
@@ -2238,35 +2238,41 @@ class Node(object):
 			raise ValueError, "Missing ';' at end."
 		return s
 
-	def read_commented_lab(self, s, combrackets='[]', namesAsNum=False, leafNamesAsNum=False):
+	def read_commented_lab(self, s, combrackets='[]', labquotes=False, namesAsNum=False, leafNamesAsNum=False):
 		"""deals with nested comments located next to labels"""
-		lbrack = s.find(combrackets[0])
-		rbrack = s.find(combrackets[1])
-		if lbrack==-1 and rbrack ==-1:
-			# clean case, no bracketed comments
-			laboot = s
-		elif lbrack == 0:
-			# comment on the left side of string
-			self.__comment = s[lbrack+1:rbrack]
-			laboot = s[rbrack+1:]
-		elif rbrack == len(s)-1:
-			# comment on the right side of string
-			self.__comment = s[lbrack+1:rbrack]
-			laboot = s[0:lbrack]
+		if labquotes:
+			lquote = s.find(labquotes)
+			rquote = s.find(labquotes)
+			self.__lab = s[lquote+1:rquote]
+			self.read_commented_lab(s[lquote:]+s[:rquote+1], namesAsNum=namesAsNum, combrackets=combrackets, labquotes=False, leafNamesAsNum=leafNamesAsNum)
 		else:
-			# comment in the middle, wrong syntax
-			raise ValueError, "You better clean your tree from comments"
-		if laboot:
-			if namesAsNum or (self.is_leaf() and leafNamesAsNum):
-				self.__lab = str(laboot)
+			lbrack = s.find(combrackets[0])
+			rbrack = s.find(combrackets[1])
+			if lbrack==-1 and rbrack ==-1:
+				# clean case, no bracketed comments
+				laboot = s
+			elif lbrack == 0:
+				# comment on the left side of string
+				self.__comment = s[lbrack+1:rbrack]
+				laboot = s[rbrack+1:]
+			elif rbrack == len(s)-1:
+				# comment on the right side of string
+				self.__comment = s[lbrack+1:rbrack]
+				laboot = s[0:lbrack]
 			else:
-				try:
-					self.__boot=float(laboot)
-				except ValueError, e:
+				# comment in the middle, wrong syntax
+				raise ValueError, "You better clean your tree from comments"
+			if laboot:
+				if namesAsNum or (self.is_leaf() and leafNamesAsNum):
 					self.__lab = str(laboot)
+				else:
+					try:
+						self.__boot=float(laboot)
+					except ValueError, e:
+						self.__lab = str(laboot)
 	
 
-	def _parser(self, s, branch_lengths=True, keep_comments=False, combrackets='[]', namesAsNum=False, leafNamesAsNum=False):
+	def _parser(self, s, branch_lengths=True, keep_comments=False, combrackets='[]', labquotes=False, namesAsNum=False, leafNamesAsNum=False):
 		"""Should not be directly used. Use parser() instead."""
 		parenth=s.rfind(')')
 		# deal with tree structure
@@ -2292,7 +2298,7 @@ class Node(object):
 				self.__children+=[self.newnode()]
 				for j in self.__children:
 					j.__father=self
-				self.__children[len(self.__children)-1]._parser(child, branch_lengths=branch_lengths, keep_comments=keep_comments, combrackets=combrackets, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+				self.__children[len(self.__children)-1]._parser(child, branch_lengths=branch_lengths, keep_comments=keep_comments, combrackets=combrackets, labquotes=labquotes, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
 				#print "***********Going to the children*************"
 				i+=1
 		# annotate node
@@ -2308,11 +2314,11 @@ class Node(object):
 					try:
 						self.__boot=float(comlaboot)
 					except ValueError, e:
-						self.read_commented_lab(comlaboot, namesAsNum=namesAsNum, combrackets=combrackets, leafNamesAsNum=leafNamesAsNum)
+						self.read_commented_lab(comlaboot, namesAsNum=namesAsNum, combrackets=combrackets, labquotes=labquotes, leafNamesAsNum=leafNamesAsNum)
 				else:
-					self.read_commented_lab(comlaboot, namesAsNum=namesAsNum, combrackets=combrackets, leafNamesAsNum=leafNamesAsNum)
+					self.read_commented_lab(comlaboot, namesAsNum=namesAsNum, combrackets=combrackets, labquotes=labquotes, leafNamesAsNum=leafNamesAsNum)
 			elif (semicol==-1 and parenth!=-1):
-				self.read_commented_lab(s[parenth+1:], namesAsNum=namesAsNum, combrackets=combrackets, leafNamesAsNum=leafNamesAsNum)
+				self.read_commented_lab(s[parenth+1:], namesAsNum=namesAsNum, combrackets=combrackets, labquotes=labquotes, leafNamesAsNum=leafNamesAsNum)
 			elif semicol==-1:
 				raise ValueError, "Incorrect syntax."
 		else:
@@ -2320,9 +2326,9 @@ class Node(object):
 				try:
 					self.__boot=float(s[parenth+1:])
 				except ValueError, e:
-					self.read_commented_lab(s[parenth+1:], namesAsNum=namesAsNum, combrackets=combrackets, leafNamesAsNum=leafNamesAsNum)
+					self.read_commented_lab(s[parenth+1:], namesAsNum=namesAsNum, combrackets=combrackets, labquotes=labquotes, leafNamesAsNum=leafNamesAsNum)
 			else:
-				self.read_commented_lab(s[parenth+1:], namesAsNum=namesAsNum, combrackets=combrackets, leafNamesAsNum=leafNamesAsNum)
+				self.read_commented_lab(s[parenth+1:], namesAsNum=namesAsNum, combrackets=combrackets, labquotes=labquotes, leafNamesAsNum=leafNamesAsNum)
 		
 		return
 		
@@ -2381,7 +2387,7 @@ class Node(object):
 #~ #		print self.bs(), self.comment(), self.lg()
 		#~ return
 	
-	def parser(self, s, branch_lengths=True, keep_comments=False, combrackets='[]', namesAsNum=False, leafNamesAsNum=False):
+	def parser(self, s, branch_lengths=True, keep_comments=False, combrackets='[]', labquotes=False, namesAsNum=False, leafNamesAsNum=False):
 		"""Fill the Node's attributes from parsing $1 string.
 	
 		Follows the Newick standard for coding trees.
@@ -2406,7 +2412,7 @@ class Node(object):
 				#~ s += ":0" 
 			
 		if s:
-			self._parser(s, branch_lengths=branch_lengths, keep_comments=keep_comments, combrackets=combrackets, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+			self._parser(s, branch_lengths=branch_lengths, keep_comments=keep_comments, combrackets=combrackets, labquotes=labquotes, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
 			if branch_lengths and self==self.go_root():
 				self.__l = 0 # sets distance above root at 0.
 		else:
@@ -2855,10 +2861,11 @@ class Node(object):
 		
 	### automated classification of sequences into coherent clades/genotypes 
 
-	def prune_genotypes(self, relvarthresh=5, minseqwithin=5, minvarwithin=1e-5, minbs=0, returnLabels=True, annotateOnTree=False, multipass=True, silent=True):
+	def prune_genotypes(self, relvarthresh=5, minseqwithin=5, minvarwithin=1e-5, minbs=0, fixnbcut=False, returnLabels=True, annotateOnTree=False, multipass=True, silent=True):
 		"""apply reccursive search for branches that increase significantly the variance compared to"""
 		t = copy.deepcopy(self)
 		lst = []
+		nbcut= 0
 		for node in t.get_sorted_children(order=3):
 			if node.nb_all_children()>=minseqwithin:
 				if not silent: print node.label(), node.nb_children(), 'children'
@@ -2874,13 +2881,15 @@ class Node(object):
 						if not silent: print 'varwithin', varwithin, 'varexcl', varexcl
 						if brboots[n]>minbs and brlens[n]>meanexcl and varexcl>=minvarwithin and (varwithin/varexcl)>relvarthresh:
 							# inner branch is significantly longer than the rest of the subtree, record the branch for cutting
-							if not silent: print '\tcut', n.label()
-							st = t.pop(n, keepRefToFather=True)
-							lst.append(st)
-							# update the distribution of branh lengths
-							brlens = dict([(n, n.lg()) for n in node.get_sorted_children(order=3) if n!=node])
-							varwithin = np.array(brlens.values()).var()
-							break
+							if (fixnbcut and nbcut<fixnbcut):
+								nbcut += 1
+								if not silent: print '\tcut', n.label()
+								st = t.pop(n, keepRefToFather=True)
+								lst.append(st)
+								# update the distribution of branch lengths
+								brlens = dict([(n, n.lg()) for n in node.get_sorted_children(order=3) if n!=node])
+								varwithin = np.array(brlens.values()).var()
+								break
 					else:
 						trhough = True
 				if (not node.is_root()) and len(brlens)>=minseqwithin and varwithin>=minvarwithin:
@@ -2896,18 +2905,44 @@ class Node(object):
 					if not silent: print 'varwithfat', varwithfat, 'varwithin', varwithin
 					if parboot>minbs and parlen>meanwithin and varwithin>=minvarwithin and (varwithfat/varwithin)>relvarthresh:
 						# parent branch is significantly longer than the subtre below, cut the subtree
-						if not silent: print '\tcut', node.label()
-						st = t.pop(node, keepRefToFather=True)
-						lst.append(st)
+						if (fixnbcut and nbcut<fixnbcut):
+							nbcut += 1
+							if not silent: print '\tcut', node.label()
+							st = t.pop(node, keepRefToFather=True)
+							lst.append(st)
 		lst.append(t)
-		if multipass and len(lst)>1:
-			if not silent: print 'second pass (recursive)'
-			llst = []
-			for st in lst:
-				# !!! reccursive call !!!
-				llst += st.prune_genotypes(relvarthresh=relvarthresh, minseqwithin=minseqwithin, minvarwithin=minvarwithin, returnLabels=False, annotateOnTree=False, multipass=multipass, silent=silent)
-		else:
+		if (fixnbcut and nbcut>=fixnbcut) or (not multipass):
 			llst = lst
+		else:
+			if nbcut>=1:
+				if not silent: print 'second pass (recursive)'
+				print len(lst), fixnbcut
+				llst = []
+				for st in lst:
+					if (fixnbcut and nbcut>=fixnbcut):
+						# already reached the maximum number of cuts, just transfer the subtree
+						llst.append(st)
+					else:
+						# !!! reccursive call !!!
+						rlst = st.prune_genotypes(relvarthresh=relvarthresh, minseqwithin=minseqwithin, minvarwithin=minvarwithin, fixnbcut=(fixnbcut-nbcut), returnLabels=False, annotateOnTree=False, multipass=multipass, silent=silent)
+						nbcut += len(rlst)-1
+						llst += rlst
+			elif fixnbcut:
+				if not silent: print 'second pass (recursive)'
+				print len(lst), fixnbcut
+				llst = []
+				for st in lst:
+					if (fixnbcut and nbcut>=fixnbcut):
+						# already reached the maximum number of cuts, just transfer the subtree
+						llst.append(st)
+					else:
+						# nothing was found, continue but with all the thresholds lowerred by 2
+						# !!! reccursive call !!!
+						rlst = st.prune_genotypes(relvarthresh=relvarthresh/2, minseqwithin=minseqwithin/2, minvarwithin=minvarwithin/2, fixnbcut=(fixnbcut-nbcut), returnLabels=False, annotateOnTree=False, multipass=False, silent=silent)
+						nbcut += len(rlst)-1
+						llst += rlst
+			else:
+				llst = lst
 		genolabs = [n.get_leaf_labels() for n in llst]
 		if annotateOnTree:
 			tt = copy.deepcopy(self)
