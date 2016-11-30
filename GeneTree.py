@@ -13,9 +13,9 @@ from math import log
 import tree2
 
 class GeneTree(tree2.AnnotatedNode):
-	"""	"""	
+	"""Enriched phylogenetic tree object, specifically representing a reconciled gene trees."""	
 	def __init__(self, branch_lengths=True, keep_comments=False, score=None, **kw):
-		""" """		
+		"""Derived from AnnotatedNode (and thus Node); adds the event attribute describing coordinates of events in the reference species tree"""		
 		super(GeneTree, self).__init__(branch_lengths=branch_lengths, keep_comments=keep_comments, **kw)	
 		self.__event = (None, None, None)		# a 3-tuple containning the type of event and the parameters of this event, as described below, and the event DB identifier
 		# if 'transfer', attribute is a 3-tuple: (receptor node_id in species tree, donor node_id in species tree, child node_id in gene tree). for Phylariane/Ancestrome reconcilated gene trees; !!! NB: the node annotations for transfer concern the children branches/nodes.

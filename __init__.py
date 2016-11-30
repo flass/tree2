@@ -7,7 +7,7 @@ Copyright 2007, Leonor Palmeira <palmeira@biomserv.univ-lyon1.fr>;
 Copyright 2013, Florent Lassalle <florent.lassalle@univ-lyon1.fr> or <florent.lassalle@ucl.ac.uk>.
 """
 
-__all__ = ["Node", "AnnotatedNode", "ReferenceTree", "GeneTree"]
+__all__ = ["Node", "AnnotatedNode", "ReferenceTree", "GeneTree", "FwdTreeSim", "Exceptions"]
 
 
 __author__ = "Florent Lassalle <florent.lassalle@ucl.ac.uk>"
@@ -25,6 +25,8 @@ from tree2.Node import Node
 from tree2.AnnotatedNode import AnnotatedNode
 from tree2.ReferenceTree import ReferenceTree
 from tree2.GeneTree import GeneTree
+#~ from tree2.Exceptions import *
+#~ from tree2.FwdTreeSim import *
 
 #######################################################################
 ########## misc functions
@@ -46,7 +48,11 @@ def setToStr2(ls, andsep="&"):
 		l.append(setToStr(s))
 	return andsep.join(l)
 	
-
+def updateappend(d1, d2):
+	"""update dictionary d1 with items from dictionary d2; similar to dict.update(), but appends LIST object (value from d2) to existing values (in d1) rather than overwriting it"""
+	for key in d2:
+		if key in d1: d1[key] += d2[key]
+		else: d1[key] = d2[key]
 	
 #######################################################################
 ########## file I/O functions
@@ -147,7 +153,7 @@ def write_nexus(ltrees, nfout, ltax, dtranslate={}, ltreenames=[], mode='w', onl
 	if isinstance(nfout, file):
 		if nfout.mode==mode and not nfout.closed:
 			fout = nfout
-	elif os.path.exists(nfout):
+	elif os.path.exists(os.path.dirname(nfout)):
 		fout = open(nfout, mode)
 	else:
 		raise ValueError, "output file argument is nor a valid path nor a file writeable in %s mode"%mode
@@ -186,10 +192,12 @@ def write_to_file(s, nf, **kw):
 	(overwrites) mode is turned on: [mode=string]."""
 	mode = kw.get('mode', 'write')
 	if type(nf)==str:
-		if mode=='append':
+		if mode in ['a', 'append']:
 			f=open(nf, 'a')
-		elif mode=='write':
+		elif mode in ['w', 'write']:
 			f=open(nf, 'w')
+		else:
+			raise ValueError, "unknown file mode: %s"%mode
 		f.write(s+'\n')
 		f.close()
 	else:
@@ -388,6 +396,13 @@ def dNoverdS(dNtree, dStree, factor=3, ignoreThreshold=0.05, medianForIgnored=Tr
 	
 #########################################
 #### functions dealing with multiple trees
+	
+def getnodefromtreelist(n, treelist):
+	for t in treelist:
+		k = t[n]
+		if k: return t[n]
+	else:
+		return None
 
 def concatMRP(treelist, boot_thresh=0.5, taxset=None, writeto=None, **kw):
 	"""generate a matrix representation of the trees, one line per bipartition.

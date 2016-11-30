@@ -233,8 +233,10 @@ class AnnotatedNode(tree2.Node):
 		""" writes the tree in PhyloXML format, readable by Achaeopteryx (http://www.phylosoft.org/archaeopteryx/)"""
 		header =  "<?xml version='1.0' encoding='UTF-8'?>"
 		header += "%s<phyloxml xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:schemaLocation='http://www.phyloxml.org http://www.phyloxml.org/1.10/phyloxml.xsd' xmlns='http://www.phyloxml.org'"%(indstart)
-		if isinstance(self, tree2.GeneTree) or isinstance(self, tree2.ReferenceTree): header += " xmlns:rec='http://www.phyloxml_rec.org' rec:schemaLocation='http://www.phyloxml_rec.org http://www.phyloxml_rec.org/1.10/phyloxml.xsd'>"
-		else:  header += ">"
+		# addition of rec module specification to header is non compliant with late version of achaeopteryx:
+		# if isinstance(self, tree2.GeneTree) or isinstance(self, tree2.ReferenceTree): header += " xmlns:rec='http://www.phyloxml_rec.org' rec:schemaLocation='http://www.phyloxml_rec.org http://www.phyloxml_rec.org/1.10/phyloxml.xsd'>"
+		# else:  header += ">"
+		header += ">"
 		header += "%s<phylogeny rooted='true'>"%indstart
 		header += "%s<name>%s</name>"%(indstart+ind,treename)
 		fout = open(nfout, 'w')
