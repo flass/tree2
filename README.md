@@ -116,4 +116,4 @@ Many other features are accessible and editable, but for these please refer to t
 Need help?
 -----------
 
-If you have any problems or comments about *tree2*, please contact me: [f.lassalle@imperial.ac.uk]<mailto:f.lassalle@imperial.ac.uk>.
+If you have any problems or comments about *tree2*, please contact me: <mailto:f.lassalle@imperial.ac.uk>.
