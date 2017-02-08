@@ -4,15 +4,17 @@
 """Object-oriented phylogenetic tree manipulation package.
 
 Copyright 2007, Leonor Palmeira <palmeira@biomserv.univ-lyon1.fr>;
-Copyright 2013, Florent Lassalle <florent.lassalle@univ-lyon1.fr> or <florent.lassalle@ucl.ac.uk>.
+Copyright 2013, Florent Lassalle <florent.lassalle@univ-lyon1.fr>;
+Copyright 2015, Florent Lassalle  <florent.lassalle@ucl.ac.uk>;
+Copyright 2016, Florent Lassalle  <f.lassalle@imperial.ac.uk>.
 """
 
-__all__ = ["Node", "AnnotatedNode", "ReferenceTree", "GeneTree", "FwdTreeSim", "Exceptions"]
+__all__ = ["Node", "AnnotatedNode", "ReferenceTree", "GeneTree", "FwdTreeSim", "Exceptions", "svgNode"]
 
 
 __author__ = "Florent Lassalle <florent.lassalle@ucl.ac.uk>"
 __date__ = "14 January 2015"
-__credits__ = """Leonor Palmeira and Laurent Guéguen for initiating the tree2.Node module."""
+__credits__ = """Leonor Palmeira and Laurent Guéguen for initiating the Node class."""
 
 
 import copy

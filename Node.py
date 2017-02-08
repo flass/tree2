@@ -19,15 +19,17 @@ Note that bracked delimited nested and unnested comments are ignored.
 
 Sequences can be assigned to each node for simulating evolution.
 
-Derived from module 'tree.py' from 'alfacinha' modules by Leonor Palmeira and Laurent Guéguen (http://pbil.univ-lyon1.fr/software/alfacinha/)
+Derived from module 'tree.py' from 'alfacinha' package by Leonor Palmeira and Laurent Guéguen (http://pbil.univ-lyon1.fr/software/alfacinha/)
 
 Copyright 2007, Leonor Palmeira <palmeira@biomserv.univ-lyon1.fr>;
-Copyright 2013, Florent Lassalle <florent.lassalle@univ-lyon1.fr>.
+Copyright 2013, Florent Lassalle <florent.lassalle@univ-lyon1.fr>;
+Copyright 2015, Florent Lassalle  <florent.lassalle@ucl.ac.uk>;
+Copyright 2016, Florent Lassalle  <f.lassalle@imperial.ac.uk>.
 """
 
-__author__ = "Leonor Palmeira <palmeira@biomserv.univ-lyon1.fr>, Laurent Guéguen <laurent.gueguen@univ-lyon1.fr>, Florent Lassalle <florent.lassalle@ucl.ac.uk>"
-__date__ = "14 January 2015"
-__credits__ = """Guido van Rossum, for an excellent programming language."""
+__author__ = "Leonor Palmeira <palmeira@biomserv.univ-lyon1.fr>, Laurent Guéguen <laurent.gueguen@univ-lyon1.fr>, Florent Lassalle  <f.lassalle@imperial.ac.uk>"
+__date__ = "10 January 2016"
+__credits__ = """Guido van Rossum, for an excellent programming language; Leonor Palmeira and Laurent Guéguen for initiating the Node class"""
 
 import string
 import copy
@@ -37,6 +39,7 @@ import shutil, os
 #import evol
 
 import tree2
+from tree2 import svgNode
 
 import numpy as np
 
@@ -235,9 +238,12 @@ class Node(object):
 		"""Return the bootstrap value at Node."""
 		return self.__boot
 
-	def label(self):
+	def label(self, comments=False):
 		"""Return the label."""
-		return self.__lab
+		#~ return self.__lab
+		text = self.__lab
+		if comments==True and self.__comment: text += '[%s]'%self.__comment
+		return text
 
 	def comment(self):
 		"""Return the comment."""
@@ -398,11 +404,14 @@ class Node(object):
 			outtree[leaf].edit_label(dspe_prot[leaf])
 		return outtree
 		
-	def listSpecies(self, llab=None, ignoreTransfers=False, asSet=True):
-		"""Return list of identifiers of species present in leaves (with labels under the HOGENOM model SPECIES_NUMREPLICON_PROTID)
-			
-		can be restricted to a particular species set
-		Needs SPECIES[_ANYTHING] type (HOGENOM-type) labels at leaves.
+	def listSpecies(self, llab=None, ignoreTransfers=False, asSet=True, splitparam=('_',1)):
+		"""Return list of identifiers of species present in leaves 
+		
+		by default, split is done at 1st occurence of '_'.
+		I one assume labels are under the HOGENOM model SPECIES_NUMREPLICON_PROTID -> return SPECIES.
+		Separator string and number in string can be specified otherwise. 
+		
+		can be restricted to a particular species set.
 		"""
 		lspe = []
 		lleaves = self.get_leaves()
@@ -414,7 +423,7 @@ class Node(object):
 			lleaves = list(set(lleaves) - set(ltransleaves))
 		for leaf in lleaves:
 			if (not llab) or (leaf.label() in llab):
-				spe = leaf.label().split('_',1)[0]
+				spe = leaf.label().split(splitparam[0], splitparam[1])[0]
 				lspe.append(spe)
 		if asSet: lspe = list(set(lspe))
 		return lspe
@@ -661,14 +670,14 @@ class Node(object):
 		children = self.get_sorted_children()
 		for c in children:	  # first builds a list of existing labels to avoid redundancy of new names
 			cl = c.label()
-			if (cl!="") and (not cl in labels):
+			if (cl not in ["", None]) and (not cl in labels):
 				labels.append(cl)
 		n = 1
 		for c in children:
 			if c in exclude: continue
 			if excludeLeaves and c.is_leaf(): continue
 			if onlyLeaves and not c.is_leaf(): continue
-			if c.label()=="" or force:
+			if c.label() in ["", None] or force:
 				lab = "%s%d"%(prefix, n)
 				while lab in labels:
 					n += 1
@@ -760,18 +769,13 @@ class Node(object):
 		a=[]
 		if self.__children!=[]:
 			for i in self.__children:
-				a+=i.get_leaf_labels(comments)
+				a += i.get_leaf_labels(comments=comments)
 		else:
-			text = self.__lab
-			if comments==True and self.__comment:
-				text += '[%s]'%self.__comment
-				a+=[text]
-			else:
-				a+=[text]
+			a.append(self.label(comments=comments))
 		return a
 		
 	def get_sorted_leaf_labels(self, comments=False, order=1):
-		return [node.get_leaf_labels(comments=comments)[0] for node in self.get_sorted_children(order=order) if node.is_leaf()]
+		return [node.label(comments=comments) for node in self.get_sorted_children(order=order) if node.is_leaf()]
 	
 	def get_leaf_sequences(self):
 		"""Return the list of sequences of the leaves defined by the Node."""
@@ -1102,7 +1106,9 @@ class Node(object):
 		else:
 			l.append(self.__lab)
 		return l
-				
+
+############################
+### graphical output methods
 		
 	def arborescence_ASCII(self, depth=0, uncleBranches=None, lastSon=False, out="print"):
 		"""prints a multi-line ASCII drawing of the tree, in a hirearchical arborescence form.
@@ -1139,114 +1145,13 @@ class Node(object):
 			for child in children[:-1]:
 				child.arborescence_ASCII(depth=depth+1, uncleBranches=uncleBranches+[depth], out=out)
 			children[-1].arborescence_ASCII(depth=depth+1, uncleBranches=uncleBranches+[depth], lastSon=True, out=out)
-			
-#### SVG format-based methods
-			
-	def getDictNodeCoords(self, cladogram=False, interleaves=20, cladofact=5, phylofact=200, noderowoverlap=True, treeorder=2):
-		"""generates coordinates of nodes in the tree for further drawing
-		NB: noderowoverlap=True is only compatible with treeorder={2,3}
-		"""
-		dxy = {}
-		yl = 0
-		internodes = interleaves*cladofact
-		nodes = self.get_sorted_children(order=treeorder)
-		# fill Y-axis coordinates
-		for node in nodes:
-			if node.is_leaf() or (not noderowoverlap):
-				h = yl
-				yl += interleaves
-			else:
-				# get mean height of children
-				h = int(float(sum([dxy[c.label()][1] for c in node.get_children()]))/node.nb_children())
-			dxy[node.label()] = (None, h)
-		# fill X-axis coordinates
-		for node in self.get_sorted_children(order=2):
-			if cladogram:
-				if node.is_leaf():
-					x = 0
-				else:
-					# get max depth of children
-					x = max([dxy[c.label()][0] for c in node.get_children()])+internodes
-			else:
-				x = node.distance(self)*phylofact
-			dxy[node.label()] = (x, dxy[node.label()][1])
-		if cladogram:
-			# correct the depth of nodes to get the root at x=0
-			totdepth = dxy[self.label()][0]
-			for node in self.get_sorted_children(order=0):
-				x, y = dxy[node.label()]
-				dxy[node.label()] = (totdepth - x, y)
-		return dxy
-			
-	def svgPathToFather(self, dxy, squared=True, style="stroke:black; stroke-width:1; fill:none; "):
-		"""path data for SVG representatioon of the branch from the node to its father"""
-		f = self.go_father()
-		if f and (f.label() in dxy):
-			fxy = dxy[f.label()]
-			sxy = dxy[self.label()]
-			pathdata = "M %d %d"%sxy
-			if squared:
-				pathdata += " L %d %d %d %d"%(fxy[0], sxy[1], fxy[0], fxy[1])
-			else:
-				pathdata += " L %d %d"%fxy
-			return '<path style="%s" d="%s" />\n'%(style, pathdata)
-		else:
-			return ''
-			
-	def svgPathPadded(self, dxy, leaves=False, xend=None, xshift=None, style="stroke:black; stroke-width:1; stroke-dasharray: 5, 5; ", **kw):
-		if leaves or (not self.is_leaf()):
-			if not xshift: xshift = (55 if leaves else 35)
-			if not xend: xend = max([xy[0] for xy in dxy.values()])+(100 if leaves else 50)
-			sxy = dxy[self.label()]
-			pathdata = "M %d %d"%(sxy[0]+xshift, sxy[1])
-			pathdata += " L %d %d"%(xend, sxy[1])
-			return '<path style="%s" d="%s" />\n'%(style, pathdata)
-		else:
-			return ''
-			
-	def svgTree(self, labels=True, supports=True, comment=None, textorbit=5, lgscale=0.01, padleaves=False, padinternalnodes=False, svgwrap=True, dnodestyle={}, dnodecoord=None, defaultstyle="stroke:black; stroke-width:1; fill:none; ", **kw):
-		"""XML string describing a SVG representatioon of the tree"""
-		xml = ''
-		if svgwrap: xml += '<?xml version="1.0" encoding="ISO-8859-1" standalone="no"?><svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink"  >\n'
-		if dnodecoord: dxy = dnodecoord
-		else: dxy = self.getDictNodeCoords(**kw)
-		for node in self.get_sorted_children(order=0):
-			# draw tree
-			style = dnodestyle.get(node, defaultstyle)
-			xml += node.svgPathToFather(dxy, style=style)
-			x, y = dxy[node.label()]
-			# draw padding
-			if node.is_leaf():
-				if padleaves:  xml += node.svgPathPadded(dxy, style=style+"stroke-dasharray: 5, 5; ", leaves=padleaves, **kw)
-			else:
-				if padinternalnodes: xml += node.svgPathPadded(dxy, style=style+"stroke-dasharray: 5, 5; ", **kw)
-			if labels:
-				xml += '<text x="%d" y="%d"  >%s'%(x+textorbit, y-textorbit, node.label())
-				if comment: xml += ' [%s]'%node.commentAsString(comment=comment)
-				xml += '</text>\n'
-			if supports and node.bs(): xml += '<text x="%d" y="%d"  >%.2f</text>\n'%(x-textorbit*2, y+textorbit*2, node.bs())
-		if not kw.get('cladogram'):			
-			# get the coordinates for bottom-middle placement of scale bar
-			leaves = self.get_leaves()
-			xl = max([dxy[l.label()][0] for l in leaves])
-			xr = dxy[self.label()][0]
-			xs = (xl + xr)/2
-			ys = max([dxy[l.label()][1] for l in leaves]) + 200
-			# get the distance scale
-			n = self.get_children()[0]
-			xn = dxy[n.label()][0]
-			scale = (xn - xr)*(float(lgscale)/n.lg())
-			# draw scale bar
-			xml += '<path style="%s" d="M %d %d L %d %d" />\n'%(defaultstyle, xs-(scale/2), ys, xs+(scale/2), ys)
-			xml += '<text x="%d" y="%d"  >%s</text>\n'%(xs, ys+50, str(lgscale))
-		if svgwrap: xml += '</svg>'
-		return xml
-		
-	def writeSvgTree(self, nfout, **kw):
-		fout = open(nfout, 'w')
-		fout.write(self.svgTree(**kw))
+	
+	def writeSvgTree(self, nfout, mode='w', **kw):
+		"""make use of tree2.svgNode module"""
+		fout = open(nfout, mode)
+		fout.write(svgNode.svgTree(self, **kw))
 		fout.close()
-		
+	
 ####################################
 ### External program call functions
 
@@ -1908,16 +1813,20 @@ class Node(object):
 			
 	def hasSameTopology(self, other):
 		"""recursively test if al nodes in $1 (other) are monophyletic in self (reference tree)"""
-		if self.is_monophyletic(other.get_leaf_labels()):
-			children = other.get_children()
-			if children:
-				for child in children:
-					if not self.hasSameTopology(child):
-						return False
+		if set(self.get_leaf_labels())==set(other.get_leaf_labels()):
+			ochildren = other.get_children()
+			schildren = self.__children
+			for ochild in ochildren:
+				for schild in schildren:
+					# explore every child to match clades
+					if schild.hasSameTopology(ochild):
+						break
 				else:
-					return True
+					return False
 			else:
 				return True
+		else:
+			return False
 				
 	def countCommonBiparts(self, other, useSpeDict=False):
 		n = 0
@@ -2354,7 +2263,7 @@ class Node(object):
 	def clean(self,s):
 		"""Clean the string in Newick format.
 	
-		Bracked delimited nested and unnested comments are eliminated.
+		Bracket-delimited nested and unnested comments are eliminated.
 		"""
 		s=s.strip()
 		if s[len(s)-1]==';':
@@ -2384,7 +2293,7 @@ class Node(object):
 		return s
 
 	def read_commented_lab(self, s, combrackets='[]', labquotes=False, namesAsNum=False, leafNamesAsNum=False):
-		"""deals with nested comments located next to labels"""
+		"""Parse node labels and bootstraps; deals with nested comments located next to labels"""
 		if labquotes:
 			lquote = s.find(labquotes)
 			rquote = s.find(labquotes)
@@ -2455,14 +2364,16 @@ class Node(object):
 				except ValueError, e:
 					raise ValueError, "Incorrect branch value -> must be numerical."
 				comlaboot = s[parenth+1:semicol]
-				if not self.is_leaf():
-					try:
-						self.__boot=float(comlaboot)
-					except ValueError, e:
-						self.read_commented_lab(comlaboot, namesAsNum=namesAsNum, combrackets=combrackets, labquotes=labquotes, leafNamesAsNum=leafNamesAsNum)
-				else:
-					self.read_commented_lab(comlaboot, namesAsNum=namesAsNum, combrackets=combrackets, labquotes=labquotes, leafNamesAsNum=leafNamesAsNum)
-			elif (semicol==-1 and parenth!=-1):
+				#~ if not self.is_leaf():
+					#~ try:
+						#~ self.__boot=float(comlaboot)
+					#~ except ValueError, e:
+						#~ self.read_commented_lab(comlaboot, namesAsNum=namesAsNum, combrackets=combrackets, labquotes=labquotes, leafNamesAsNum=leafNamesAsNum)
+				#~ else:
+					#~ self.read_commented_lab(comlaboot, namesAsNum=namesAsNum, combrackets=combrackets, labquotes=labquotes, leafNamesAsNum=leafNamesAsNum)
+				self.read_commented_lab(comlaboot, namesAsNum=namesAsNum, combrackets=combrackets, labquotes=labquotes, leafNamesAsNum=leafNamesAsNum)
+			elif (semicol==-1 and parenth!=-1) or (semicol < parenth):
+			#~ elif (semicol==-1 and parenth!=-1): # added (semicol < parenth) condition to include case when root node has no ':brlength' terminal tag (before ultimate ';')
 				self.read_commented_lab(s[parenth+1:], namesAsNum=namesAsNum, combrackets=combrackets, labquotes=labquotes, leafNamesAsNum=leafNamesAsNum)
 			elif semicol==-1:
 				raise ValueError, "Incorrect syntax."
