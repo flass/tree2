@@ -97,7 +97,7 @@ ln1 = t.get_sorted_children(order=1) ; print [n.label() for n in ln1]	# ordered 
 ln2 = t.get_sorted_children(order=2) ; print [n.label() for n in ln2]		# post-oder traversal (exploration of each group of leaves, then the nodes above)
 ```
 
-You may want to remove some species from your dataset while keeping the paroperties of the rest of the tree (notably consistent branch lengths and supports)
+You may want to remove some species from your dataset while keeping the properties of the rest of the tree (notably consistent branch lengths and supports)
 
 ```python
 o = t.pop('Orang') # prune the Orang branch identified by its label
@@ -116,4 +116,4 @@ Many other features are accessible and editable, but for these please refer to t
 Need help?
 -----------
 
-If you have any problems or comments about *tree2*, please contact me.
+If you have any problems or comments about *tree2*, please contact me: <mailto:f.lassalle@imperial.ac.uk>.
