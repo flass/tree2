@@ -110,14 +110,24 @@ def read_nexus(nf, treeclass="Node", returnDict=True, translateLabels=True, getT
 				if multilinecomment:
 					if ']' in lst: multilinecomment = False
 					continue
-				elif lst.startswith('translate'): labelrows = True
-				elif labelrows and lst==';': labelrows = False ; assert datadim in [len(dtax), None] # ; print dtax
-				elif labelrows: tnum = lst.rstrip(',').split() ; dtax[tnum[0].strip("'")] = tnum[1].strip("'")
+				elif lst.startswith('translate'):
+					labelrows = True
+				elif labelrows:
+					tnum = lst.rstrip(';,').split()
+					if tnum: dtax[tnum[0].strip("'")] = tnum[1].strip("'")
+					if lst.endswith(';'):
+						labelrows = False ; assert datadim in [len(dtax), None] # ; print dtax
 				elif lst.startswith('tree '): tt = lst.split('tree', 1)[1].strip(' ').partition(' = ')
 				if tt:
 					treename, sep, nwk = tt
-					if nwk.lower().startswith('[&r]'): nwk = nwk.lstrip(' [&rR]')
+					if nwk.lower().startswith('[&'): 
+						rootstatus, sep, nwk = nwk.partition('] ')
+						rootstatus = rootstatus.lstrip('[&').lower()
+					else:
+						rootstatus = None
 					t = tc(newick=nwk, leafNamesAsNum=(len(dtax)>0), **kw)
+					# tag the tree for being originally unrooted or not (all Node objects are intrinsically rooted) for later writing back into the right form
+					t.unrooted = True if rootstatus=='u' else False
 					#~ if treeclass=="Node": t = Node(newick=nwk, leafNamesAsNum=(len(dtax)>0), **kw)
 					#~ elif treeclass=="AnnotatedNode": t = AnnotatedNode(newick=nwk, leafNamesAsNum=(len(dtax)>0), **kw)
 					#~ elif treeclass=="ReferenceTree": t = ReferenceTree(newick=nwk, leafNamesAsNum=(len(dtax)>0), **kw)
@@ -429,13 +439,14 @@ def concatMRP(treelist, boot_thresh=0.5, taxset=None, writeto=None, **kw):
 	if writeto!=None: writeMRP(cmrp, writeto, **kw)
 	return cmrp
 	
-def writeMRP(mrp, nfout, outfmt='phylip', codeout={True:'1', False:'0', None:'?'}):
+def writeMRP(mrp, nfout=None, outfmt='phylip', codeout={True:'1', False:'0', None:'?'}):
 	fout = open(nfout, 'w')
 	if outfmt.startswith('phylip'):  fout.write("    %d    %d\n"%(len(mrp), len(mrp.values()[0])))
-	for leaf in cmrp: 
+	for leaf in mrp:
+		rowout = [codeout[bi] for bi in mrp[leaf]]
 		if outfmt=='phylip': fout.write(leaf.ljust(10))
 		elif outfmt=='phylip.relax': fout.write("%s\t"%leaf)
 		elif outfmt=='fasta':  fout.write(">%s\n"%leaf)
 		else: raise ValueError, "unsuported output format: %s"%outfmt
-		fout.write(''.join([codeout[bi] for bi in cmrp[leaf]])+"\n")
+		fout.write(''.join(rowout)+"\n")
 	fout.close()

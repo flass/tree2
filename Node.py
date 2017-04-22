@@ -130,6 +130,14 @@ class Node(object):
 				if t:
 					return t
 		return None
+		
+	def __getattr__(self, attr):
+		if attr=='boot': return self.__boot
+		elif attr=='l': return self.__l
+		elif attr in ['lab']: return self.__lab
+		elif attr in ['fat', 'father']: return self.__father
+		elif attr=='children': return self.__children
+		else: raise AttributeError
 	
 	def __str__(self):
 		"""Return printable string in Newick format of the sub-tree defined by the Node."""
@@ -249,6 +257,25 @@ class Node(object):
 		"""Return the comment."""
 		return self.__comment
 		
+	def getattr_down_n_nodes(self, attr, n, ommitself=False, stopatnodes=[], leafval='same'):
+		"""return a list of the chosen attribute value for all branches/nodes down the tree from the focal node.
+		
+		Operate reccursively over n children (maximum, stops at leaves) if n >= 0,
+		or until exploration of all leaves if n < 0.
+		"""
+		lval = []
+		if not ommitself:
+			if leafval=='same': val =  getattr(self, attr)
+			else: val = leafval if self.is_leaf() else getattr(self, attr)
+			if callable(val): lval.append(val())
+			else: lval.append(val)
+		if n!=0:
+			for sn in self.__children:
+				if not (sn in stopatnodes):
+					lval += sn.getattr_down_n_nodes(attr, n-1, stopatnodes=stopatnodes)
+		return lval
+	
+		
 	def get_all_children(self):
 		"""Return the list of all nodes below the Node, including itself, in a pre-order traversal"""
 		a=[self]
@@ -257,11 +284,12 @@ class Node(object):
 			a+=i.get_all_children()
 		return a
 		
-	def get_postordertraversal_children(self, deepfirst=False):
+	def get_postordertraversal_children(self, deepfirst=False, deeplast=False):
 		"""Return the list of all nodes below the Node, including itself, in a post-order traversal"""
 		a=[]
 		children = self.__children
 		if deepfirst: children.sort(key=lambda x: x.max_leaf_depth())
+		elif deeplast: children.sort(key=lambda x: -1*x.max_leaf_depth())
 		if children!=[]:
 			for i in children:
 				a+=i.get_postordertraversal_children()
@@ -285,13 +313,14 @@ class Node(object):
 	def get_sorted_children(self, order=1):
 		"""Return the list of all nodes below the Node, including itself
 		
-		order= 1: ordered by decreasing depth (i.e. increasing node distance from root).
-		order= 0: pre-oder traversal (classic root-to-leaves exploration)
 		order=-1: ordered by increasing depth (i.e. decreasing node distance from root).
+		order= 0: pre-oder traversal (classic root-to-leaves exploration)
+		order= 1: ordered by decreasing depth (i.e. increasing node distance from root).
 		order= 2: post-oder traversal (exploration of each group of leaves, then the nodes above ; compatible with Count's rate files node enumeration)
 		order= 3: post-oder traversal (exploration of each group of leaves, then the nodes above ; compatible with Count's rate files node enumeration) with always exploring the deepest node first
 		order= 4: mid-order traversal (first the left child(ren), then the father, then the right child(ren))
 		order= 5: mid-order traversal (first the right child(ren), then the father, then the left child(ren))
+		order= 6: post-oder traversal (exploration of each group of leaves, then the nodes above ; compatible with Count's rate files node enumeration) with always exploring the deepest node last
 		"""
 		
 		if order in [-1, 0, 1]:
@@ -305,6 +334,8 @@ class Node(object):
 			a = self.get_midordertraversal_children(righttfirst=False)
 		elif order == 5:
 			a = self.get_midordertraversal_children(righttfirst=True)
+		elif order == 6:
+			a = self.get_postordertraversal_children(deeplast=True)
 		return a
 		
 	def get_comtemporary_branches(self, t, dp_drootdist=None, tagwithlabels=True):
@@ -561,7 +592,7 @@ class Node(object):
 			return l
 		
 		def oldpop(f, c):				
-			""" old implementation: 'mutation' of the father node into its non-poped child"""
+			""" old implementation: `mutation' of the father node into its non-poped child"""
 			df = f.__dict__
 			dc = c.__dict__
 			for attr in df:
@@ -583,7 +614,7 @@ class Node(object):
 			del c
 					
 		def newpop(gf, f, c):
-			""" new implementation : no 'mutation' of the node object, 'f' is disconnected and the child to the grand-father"""
+			""" new implementation : no `mutation' of the node object, the father node is disconnected from above and below, and the child is reconnected to the grand-father"""
 			gf.add_child(c)
 			c.change_father(gf, newlen=sumlen(f,c), newboot=max(f.bs(), c.bs()))
 			gf.rm_child(f)
@@ -611,12 +642,15 @@ class Node(object):
 					else:
 						raise IndexError, "where is the brother of node to pop 'np'?"
 					gf = f.go_father()
-					if tellReplacingNode:
-						return (f.label(), c.label())
-					else:
-						if keepRefToFather or (not gf):
-							# poping under the root or another node to keep referenced
+					if keepRefToFather or (not gf):
+						# poping under the root or another node to keep referenced
+						if tellReplacingNode:
+							return (c.label(), f.label())
+						else:
 							oldpop(f, c)				
+					else:
+						if tellReplacingNode:
+							return (f.label(), c.label())
 						else:
 							newpop(gf, f, c)
 		return np
@@ -664,10 +698,10 @@ class Node(object):
 				lab = "%s%d"%(prefix, n)
 			self.add_label(lab)
 
-	def complete_internal_labels(self, prefix='N', labels=None, force=False, exclude=[], excludeLeaves=False, onlyLeaves=False):
+	def complete_internal_labels(self, prefix='N', labels=None, force=False, exclude=[], excludeLeaves=False, onlyLeaves=False, silent=True, order=1):
 		"""recursively gives label to internal nodes that lack one given a set of pre-existing labels in the tree"""
 		if not labels: labels = []
-		children = self.get_sorted_children()
+		children = self.get_sorted_children(order=order)
 		for c in children:	  # first builds a list of existing labels to avoid redundancy of new names
 			cl = c.label()
 			if (cl not in ["", None]) and (not cl in labels):
@@ -685,6 +719,7 @@ class Node(object):
 				c.add_label(lab)
 				labels.append(lab)
 				n += 1
+				if not silent: print lab
 		
 #####################################################
 ############## methods for access to object's child atributes:
@@ -764,7 +799,7 @@ class Node(object):
 		return len(self.get_leaves())	
 			
 	def get_leaf_labels(self, comments=False):
-		"""Return the list of labels of the leaves defined by the Node."""
+		"""Return the list of labels of the leaves defined by the Node, following a post-order traversal."""
 		
 		a=[]
 		if self.__children!=[]:
@@ -789,7 +824,7 @@ class Node(object):
 		return a
 
 	def get_leaves(self):
-		"""Return the list of leaves defined by the Node."""
+		"""Return the list of leaves composing the clade defined by the Node."""
 	
 		a=[]
 		if self.__children!=[]:
@@ -945,7 +980,7 @@ class Node(object):
 		comment = kw.get('comment','comment')
 		ignoreBS = kw.get('ignoreBS',False)
 		branch_lengths = kw.get('branch_lengths',True)
-		unrooted = kw.get('unrooted',False)
+		unrooted = kw.get('unrooted', getattr(self, 'unrooted', False))
 		ignore_trivial_nodes = kw.get('ignore_trivial_nodes',False)
 		nullBranchesAsZeroLength = kw.get('nullBranchesAsZeroLength',False)
 		
@@ -1462,6 +1497,16 @@ class Node(object):
 				return False
 			else:
 				f=f.go_father()	
+				
+	def is_parent_of_any(self, lnodes, returnList=False):
+		lchild = []
+		for node in lnodes:
+			if node.is_child(self):
+				if returnList: lchild.append(node)
+				return True
+		else:
+			if returnList: return lchild
+			else: return False
 				
 	def is_childorself(self, node1):
 		return ((self==node1) or self.is_child(node1))
@@ -2519,6 +2564,15 @@ class Node(object):
 		newfat.link_child(newbro, newlen=newbro.lg(), newboot=newbro.bs())
 		if grandfat: grandfat.link_child(newfat)
 		return (newfat, grandfat)
+			
+	def as_leaf(self, newlabel=None, silent=True):
+		"""unlinks node from its potential children, making it a leaf"""
+		if not silent: print "(before as_leaf) self.children_labels:", self.children_labels()
+		while self.__children:
+			c = self.__children[0]
+			self.unlink_child(c, silent=silent)
+		if not silent: print "(after as_leaf) self.children_labels:", self.children_labels()
+		if newlabel: self.edit_label(newlabel)
 
 	def link_child(self, newchild, newlen=None, newboot=None, silent=True):
 		self.add_child(newchild, silent=silent)
@@ -2905,22 +2959,39 @@ class Node(object):
 				if not justTryrooting:
 					raise IndexError, e
 				
-	def getMRP(self, boot_thresh=0.5, taxset=None, writeto=None, **kw):
-		"""return the Matrix Representation with Parsimony of the tree as in Daubin et al. (2004), Genome Res. 12:1080-1090"""
+	def getMRP(self, boot_thresh=0.5, taxset=None, matrixformat='dictoflist', writeto=None, order=1, **kw):
+		"""return the Matrix Representation with Parsimony of the tree as in Daubin et al. (2004), Genome Res. 12:1080-1090
+		
+		writeto is None (default): matrix is returned as a dict of lists 
+		writeto is a str : write PHYLIP format matrix to this file path; matrix still is returned as a dict of lists 
+		writeto is False : matrix is returned as a 2-D nested lists;
+		"""
+		def addtodictoflist(mat, key, val, addrow=False):
+			if addrow: mat[key] = []
+			mat[key].append(val)
+		def addtolistoflist(mat, key, val, addrow=False):
+			if addrow: mat.append([])
+			mat[-1].append(val)
+		
+		addfun = eval('addto'+matrixformat)
 		sleaves = self.get_leaf_labels()
 		if taxset: lleaves = list(taxset)
 		else: lleaves = sleaves
 		# dictionary of taxa (rows) to bipartitions (colunms)
 		mrp = {}
-		for node in self:
+		n = 0
+		for node in self.get_sorted_children(order=order):
 			# ignore root node (trivial bipartition and nodes with low branch support)
 			if node.is_root() or node.bs()<boot_thresh: continue
 			ll = node.get_leaf_labels()
-			for leaf in lleaves:
-				if leaf in ll: mrp.setdefault(leaf, []).append(True)
-				elif leaf in sleaves: mrp.setdefault(leaf, []).append(False)
-				else: mrp.setdefault(leaf, []).append(None)
-		if writeto!=None: tree2.writeMRP(mrp, writeto, **kw)
+			for leaflab in lleaves:
+				if leaflab in ll: addfun(mrp, leaflab, True, (not bool(n)))
+				elif leaflab in sleaves: addfun(mrp, leaflab, False, (not bool(n)))
+				else: addfun(mrp, leaflab, None, (not bool(n)))
+			n += 1
+		if writeto:
+			if matrixformat!='dictoflist': raise ValueEror, "requires matrixformat='dictoflist' for writing out matrix"
+			tree2.writeMRP(mrp, writeto, **kw)
 		return mrp
 		
 	### automated classification of sequences into coherent clades/genotypes 

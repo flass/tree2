@@ -66,11 +66,11 @@ class AnnotatedNode(tree2.Node):
 	def labgetid(self, lab):
 		return self[lab].nodeid()
 				
-	def complete_node_ids(self):
-		"""numbering of nodes from root to leaves"""
+	def complete_node_ids(self, order=1):
+		"""numbering of nodes; default by increasing depth = from root to leaves, but not following the tre structure"""
 		nodeid=0
 #		children.reverse()
-		for node in self.get_sorted_children(order=1):
+		for node in self.get_sorted_children(order=order):
 			if not node.nodeid()>=0:
 				node.set_node_id(nodeid)
 				nodeid += 1
