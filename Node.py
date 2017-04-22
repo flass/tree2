@@ -701,7 +701,11 @@ class Node(object):
 	def complete_internal_labels(self, prefix='N', labels=None, force=False, exclude=[], excludeLeaves=False, onlyLeaves=False, silent=True, order=1):
 		"""recursively gives label to internal nodes that lack one given a set of pre-existing labels in the tree"""
 		if not labels: labels = []
-		children = self.get_sorted_children(order=order)
+		if isinstance(order, list):
+			# orderred node list is given
+			children = order
+		else:
+			children = self.get_sorted_children(order=order)
 		for c in children:	  # first builds a list of existing labels to avoid redundancy of new names
 			cl = c.label()
 			if (cl not in ["", None]) and (not cl in labels):

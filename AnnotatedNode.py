@@ -69,8 +69,12 @@ class AnnotatedNode(tree2.Node):
 	def complete_node_ids(self, order=1):
 		"""numbering of nodes; default by increasing depth = from root to leaves, but not following the tre structure"""
 		nodeid=0
-#		children.reverse()
-		for node in self.get_sorted_children(order=order):
+		if isinstance(order, list):
+			# orderred node list is given
+			children = order
+		else:
+			children = self.get_sorted_children(order=order)
+		for node in children:
 			if not node.nodeid()>=0:
 				node.set_node_id(nodeid)
 				nodeid += 1
