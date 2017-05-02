@@ -144,7 +144,8 @@ class Node(object):
 		return self.newick()
 		
 	def __iter__(self):
-		return self.generator()
+		#~ return self.generator()
+		return self.preordertraversal_generator()
 		
 	def __len__(self):
 		return len(self.get_all_children())
@@ -229,10 +230,10 @@ class Node(object):
 		#~ elif sd == so: return 0
 		#~ else: return 1
 		
-	def generator(self):
-		children = self.get_all_children()
-		for child in children:
-			yield child
+	#~ def generator(self):
+		#~ children = self.get_all_children()
+		#~ for child in children:
+			#~ yield child
 
 	def sequence(self):
 		"""Return the Sequence of the Node."""
@@ -274,41 +275,110 @@ class Node(object):
 				if not (sn in stopatnodes):
 					lval += sn.getattr_down_n_nodes(attr, n-1, stopatnodes=stopatnodes)
 		return lval
-	
-		
-	def get_all_children(self):
+			
+	def preordertraversal_generator(self):
+		"""recursively yield all the nodes below the Node, including itself, in a pre-order traversal"""
+		yield self
+		for child in self.__children:
+			for rechild in child.preordertraversal_generator():
+				yield rechild
+				
+	def get_preordertraversal_children(self):
 		"""Return the list of all nodes below the Node, including itself, in a pre-order traversal"""
-		a=[self]
-		#~ if self.__children!=[]:
-		for i in self.__children:
-			a+=i.get_all_children()
-		return a
-		
-	def get_postordertraversal_children(self, deepfirst=False, deeplast=False):
-		"""Return the list of all nodes below the Node, including itself, in a post-order traversal"""
-		a=[]
+		return list(self.preordertraversal_generator())
+				
+	#~ def get_all_children(self):
+		#~ """Return the list of all nodes below the Node, including itself, in a pre-order traversal"""
+		#~ a=[self]
+		#~ for i in self.__children:
+			#~ a+=i.get_all_children()
+		#~ return a
+	# rather use an alias for code consistency
+	get_all_children = get_preordertraversal_children
+	
+	def postordertraversal_generator(self, deepfirst=False, deeplast=False):
+		"""recursively yield all the nodes below the Node, including itself in a post-order traversal"""
 		children = self.__children
 		if deepfirst: children.sort(key=lambda x: x.max_leaf_depth())
 		elif deeplast: children.sort(key=lambda x: -1*x.max_leaf_depth())
-		if children!=[]:
-			for i in children:
-				a+=i.get_postordertraversal_children()
-		a += [self]
-		return a
+		for child in children:
+			for rechild in child.postordertraversal_generator():
+				yield rechild
+		yield self
 		
-	def get_midordertraversal_children(self, righttfirst=False):
-		"""Return the list of all nodes below the Node, including itself, in a mid-order traversal"""
-		a=[]
+	def get_postordertraversal_children(self, deepfirst=False, deeplast=False):
+		"""Return the list of all nodes below the Node, including itself, in a post-order traversal"""
+		#~ a=[]
+		#~ children = self.__children
+		#~ if deepfirst: children.sort(key=lambda x: x.max_leaf_depth())
+		#~ elif deeplast: children.sort(key=lambda x: -1*x.max_leaf_depth())
+		#~ if children!=[]:
+			#~ for i in children:
+				#~ a+=i.get_postordertraversal_children()
+		#~ a += [self]
+		#~ return a
+		return list(self.postordertraversal_generator(deepfirst=deepfirst, deeplast=deeplast))
+	
+	def midordertraversal_generator(self, righttfirst=False):
+		"""recursively yield all the nodes below the Node, including itself in a mid-order traversal; 
+		
+		i.e. the left child first, then the Node, then the other children from left to right
+		"""
 		children = self.__children
 		ordch = range(len(children))
-		if righttfirst: ordch.reverse()
+		if righttfirst: ordch.reverse() # use list of index to not change order of self.__children list!
 		if children:
 			firstch = children[ordch[0]]
-			a+=firstch.get_midordertraversal_children(righttfirst=righttfirst)
-		a += [self]
+			for rechild in firstch.midordertraversal_generator(righttfirst=righttfirst):
+				yield rechild
+		yield self
 		for i in ordch[1:]:
-			a+=children[i].get_midordertraversal_children(righttfirst=righttfirst)
-		return a
+			for rechild in children[i].midordertraversal_generator(righttfirst=righttfirst):
+				yield rechild
+	
+	def get_midordertraversal_children(self, righttfirst=False):
+		"""Return the list of all nodes below the Node, including itself, in a mid-order traversal"""
+		#~ a=[]
+		#~ children = self.__children
+		#~ ordch = range(len(children))
+		#~ if righttfirst: ordch.reverse()
+		#~ if children:
+			#~ firstch = children[ordch[0]]
+			#~ a+=firstch.get_midordertraversal_children(righttfirst=righttfirst)
+		#~ a += [self]
+		#~ for i in ordch[1:]:
+			#~ a+=children[i].get_midordertraversal_children(righttfirst=righttfirst)
+		#~ return a
+		return list(self.midordertraversal_generator(righttfirst=righttfirst)
+		
+	def sorted_generator(self, order=1):
+		"""yield all the nodes below the Node, including itself, based on a specified order
+		
+		order=-1: ordered by increasing depth (i.e. decreasing node distance from root).
+		order= 0: pre-oder traversal (classic root-to-leaves exploration)
+		order= 1: ordered by decreasing depth (i.e. increasing node distance from root).
+		order= 2: post-oder traversal (exploration of each group of leaves, then the nodes above ; compatible with Count's rate files node enumeration)
+		order= 3: post-oder traversal (exploration of each group of leaves, then the nodes above ; compatible with Count's rate files node enumeration) with always exploring the deepest node first
+		order= 4: mid-order traversal (first the left child(ren), then the father, then the right child(ren))
+		order= 5: mid-order traversal (first the right child(ren), then the father, then the left child(ren))
+		order= 6: post-oder traversal (exploration of each group of leaves, then the nodes above ; compatible with Count's rate files node enumeration) with always exploring the deepest node last
+		"""
+		if order in [-1, 1]:
+			a = self.get_all_children()
+			a.sort(key=lambda x: x.depth()*order)
+			for n in a: yield n
+		elif order == 0:
+			return self.preordertraversal_generator()
+		elif order == 2:
+			return self.postordertraversal_generator()
+		elif order == 3:
+			return self.postordertraversal_generator(deepfirst=True)
+		elif order == 4:
+			return self.midordertraversal_generator(righttfirst=False)
+		elif order == 5:
+			return self.midordertraversal_generator(righttfirst=True)
+		elif order == 6:
+			return self.postordertraversal_generator(deeplast=True)
 
 	def get_sorted_children(self, order=1):
 		"""Return the list of all nodes below the Node, including itself
@@ -698,32 +768,51 @@ class Node(object):
 				lab = "%s%d"%(prefix, n)
 			self.add_label(lab)
 
-	def complete_internal_labels(self, prefix='N', labels=None, force=False, exclude=[], excludeLeaves=False, onlyLeaves=False, silent=True, order=1):
-		"""recursively gives label to internal nodes that lack one given a set of pre-existing labels in the tree"""
-		if not labels: labels = []
+	def complete_internal_labels(self, prefix='N', labels=None, ffel=False, force=False, exclude=[], excludeLeaves=False, onlyLeaves=False, silent=True, order=1, fast=False):
+		"""give a numeric label following a specified order to ALL nodes that lack a label; naturally skips editing the leaf that should be already labelled.
+		
+		a list of nodes of self to not edit can be passed as 'exclude'.
+		a list of labels can be passed as 'labels' to extend the list of labels to avoid (in addition to the labels already present in the tree).
+		
+		if 'force' is True, all nodes are renamed, including leaves (unless 'excludeLeaves' is set to True).
+		if 'fast' is True, no lookup of what is already present in the tree is done; 
+		safer used in combination with 'force=True' (and 'excludeLeaves=True'), as provided by combo option 'ffel'.
+		"""
 		if isinstance(order, list):
 			# orderred node list is given
 			children = order
 		else:
 			children = self.get_sorted_children(order=order)
-		for c in children:	  # first builds a list of existing labels to avoid redundancy of new names
-			cl = c.label()
-			if (cl not in ["", None]) and (not cl in labels):
-				labels.append(cl)
+		if not (fast or ffel):
+			# first builds a list of existing labels to avoid redundancy of new names
+			if not labels: labs = []
+			else: labs = labels
+			for c in children:
+				cl = c.label()
+				if (cl not in ["", None]) and (not cl in labs):
+					labs.append(cl)
 		n = 1
+		lab = "%s%d"%(prefix, n)
 		for c in children:
 			if c in exclude: continue
-			if excludeLeaves and c.is_leaf(): continue
+			if (excludeLeaves or ffel) and c.is_leaf(): continue
 			if onlyLeaves and not c.is_leaf(): continue
-			if c.label() in ["", None] or force:
-				lab = "%s%d"%(prefix, n)
-				while lab in labels:
-					n += 1
+			if (force or ffel) or (c.label() in ["", None]):
+				if (fast or ffel):
 					lab = "%s%d"%(prefix, n)
+					n += 1
+				else:
+					while lab in labs:
+						n += 1
+						lab = "%s%d"%(prefix, n)
 				c.add_label(lab)
-				labels.append(lab)
+				if not (fast or ffel): labs.append(lab)
 				n += 1
 				if not silent: print lab
+				
+	def check_unique_labelling(self):
+		nodelabs = self.get_childre()
+		assert len(set(nodelabs))==len(nodelabs)
 		
 #####################################################
 ############## methods for access to object's child atributes:
