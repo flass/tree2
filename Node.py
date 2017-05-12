@@ -43,6 +43,16 @@ from tree2 import svgNode
 
 import numpy as np
 
+def sumlen(*L):
+	"""sum branch lengths (floats or None from list L), with None taking value 0 unless only None are summed in which case None is returned""" 
+	l = None
+	for k in L:
+		if k!=None: 
+			if l!=None: l += k
+			else: l = k
+		return l
+
+
 #######################################################################
 #######################################################################
 ########  Node class: attributes and instance creation
@@ -165,8 +175,8 @@ class Node(object):
 				newinstance.__dict__[attr] = self.__dict__[attr]	# just use the same pointer
 		return newinstance
 		
-	def deepcopybelow(self, keep_lg=False, add_ref_attr=False):
-		"""return similar subtree object than pop(self) result, but as a copy (not the same object, and the original instance stays untouched attached to the tree).
+	def deepcopybelow(self, keep_lg=False, add_ref_attr=False, shallow_copy_attr=[]):
+		"""return similar subtree object than pop(self) result, but as a copy (not the same object, and the original instance remains untouched attached to the tree).
 		
 		compared to regular __copy__(), avoids duplicating the tree above. On a root node and with keep_lg=True, equivalent to copy.deepcopy(self).
 		"""
@@ -174,6 +184,8 @@ class Node(object):
 		for attr in self.__dict__:
 			if (attr == '_Node__father') or (attr == '_Node__l' and not keep_lg):
 				newinstance.__dict__[attr] = None
+			elif attr in shallow_copy_attr:
+				newinstance.__dict__[attr] = self.__dict__[attr]
 			else:
 				newinstance.__dict__[attr] = copy.deepcopy(self.__dict__[attr])
 		for child in newinstance.get_children():
@@ -188,8 +200,8 @@ class Node(object):
 				newnodes[i].ref = oldnodes[i]
 		return newinstance
 		
-	def deepcopyabove(self):
-		"""return similar root-side tree object than self after calling pop(), but as a copy (not the same object, and the original instance stays untouched with subtree attached).
+	def deepcopyabove(self, shallow_copy_attr=[]):
+		"""return similar root-side tree object than self after calling pop(), but as a copy (not the same object, and the original instance remains untouched with subtree attached).
 		
 		compared to regular __copy__(), avoids duplicating the tree below.
 		"""
@@ -197,6 +209,8 @@ class Node(object):
 		for attr in self.__dict__:
 			if attr == '_Node__children':
 				newinstance.__dict__[attr] = []
+			elif attr in shallow_copy_attr:
+				newinstance.__dict__[attr] = self.__dict__[attr]
 			else:
 				newinstance.__dict__[attr] = copy.deepcopy(self.__dict__[attr])
 		# associate the copied father with the newinstance, rather than with an unlinked deep copy of its child
@@ -349,7 +363,7 @@ class Node(object):
 		#~ for i in ordch[1:]:
 			#~ a+=children[i].get_midordertraversal_children(righttfirst=righttfirst)
 		#~ return a
-		return list(self.midordertraversal_generator(righttfirst=righttfirst)
+		return list(self.midordertraversal_generator(righttfirst=righttfirst))
 		
 	def sorted_generator(self, order=1):
 		"""yield all the nodes below the Node, including itself, based on a specified order
@@ -368,17 +382,17 @@ class Node(object):
 			a.sort(key=lambda x: x.depth()*order)
 			for n in a: yield n
 		elif order == 0:
-			return self.preordertraversal_generator()
+			for n in self.preordertraversal_generator(): yield n
 		elif order == 2:
-			return self.postordertraversal_generator()
+			for n in self.postordertraversal_generator(): yield n
 		elif order == 3:
-			return self.postordertraversal_generator(deepfirst=True)
+			for n in self.postordertraversal_generator(deepfirst=True): yield n
 		elif order == 4:
-			return self.midordertraversal_generator(righttfirst=False)
+			for n in self.midordertraversal_generator(righttfirst=False): yield n
 		elif order == 5:
-			return self.midordertraversal_generator(righttfirst=True)
+			for n in self.midordertraversal_generator(righttfirst=True): yield n
 		elif order == 6:
-			return self.postordertraversal_generator(deeplast=True)
+			for n in self.postordertraversal_generator(deeplast=True): yield n
 
 	def get_sorted_children(self, order=1):
 		"""Return the list of all nodes below the Node, including itself
@@ -641,33 +655,17 @@ class Node(object):
 		else:
 			raise ValueError
 
-	def pop(self, name, keepRefToFather=False, tellReplacingNode=False):
-		"""Return the Node with this name, and removes it from the tree.
-		
-		New implementation: father node is completely disconected from the tree, its other child are grafted to the grand-father
-							if the father is the root (no grand-father), uses old implementation
-		Old implementation: If node removal leaves only one node under the father node, the father node takes all the attributes from the brother node.
-							> used for poping node under the root or under a node the user would keep referenced
-		In both implementations, removing a node leads to merge two branches: their lengths are summed and the highest support is kept.
-		Caution : function used in Node.reRoot() (coded while using old implementation).
-		
-		if tellReplacingNode is True, will not change the tree but will return the pair of node to be collapsed if a node is poped as a tuple (removed_node, staying_node).
-		"""
-		def sumlen(f,c):
-			l = None
-			for k in (f,c):
-				if k.lg()!=None: 
-					if l!=None: l += k.lg()
-					else: l = k.lg()
-			return l
-		
+
+	@staticmethod
+	def collapse(f, c, gf=None, tellReplacingNode=False, keepRefToFather=False):
+		"""how to operate fusion of two given nodes, either by removing the intermediate node (newpop) or mutating the intermediate into the top one (oldpop)"""
 		def oldpop(f, c):				
 			""" old implementation: `mutation' of the father node into its non-poped child"""
 			df = f.__dict__
 			dc = c.__dict__
 			for attr in df:
 				if attr=='_Node__l':
-					f.set_lg(sumlen(f,c))
+					f.set_lg(sumlen(f.lg(),c.lg()))
 				elif attr=='_Node__boot':
 					f.set_bs(max(f.bs(), c.bs()))
 				elif attr=='_Node__children':
@@ -683,12 +681,43 @@ class Node(object):
 					df[attr] = dc[attr]
 			del c
 					
+		
 		def newpop(gf, f, c):
 			""" new implementation : no `mutation' of the node object, the father node is disconnected from above and below, and the child is reconnected to the grand-father"""
 			gf.add_child(c)
-			c.change_father(gf, newlen=sumlen(f,c), newboot=max(f.bs(), c.bs()))
+			c.change_father(gf, newlen=sumlen(f.lg(),c.lg()), newboot=max(f.bs(), c.bs()))
 			gf.rm_child(f)
 			f.rm_child(c)
+		
+		if keepRefToFather or (not gf):
+			# poping under the root or another node to keep referenced
+			if tellReplacingNode:
+				return (c.label(), f.label())
+			else:
+				oldpop(f, c)				
+		else:
+			if tellReplacingNode:
+				return (f.label(), c.label())
+			else:
+				newpop(gf, f, c)
+		return None
+
+	def pop(self, name, keepRefToFather=False, tellReplacingNode=False, noCollapse=False):
+		"""Return the Node with this name, and removes it from the tree.
+		
+		New implementation: father node is completely disconected from the tree, its other child are grafted to the grand-father
+							if the father is the root (no grand-father), uses old implementation
+		Old implementation: If node removal leaves only one node under the father node, the father node takes all the attributes from the brother node.
+							> used for poping node under the root or under a node the user would keep referenced
+		In both implementations, removing a node leads to merge two branches: their lengths are summed and the highest support is kept.
+		Caution : function used in Node.reRoot() (coded while using old implementation).
+		
+		if tellReplacingNode is True, will not change the tree but will return the pair of node to be collapsed if a node is poped as a tuple (removed_node, staying_node).
+		
+		if noCollapse is True, the  father node of the node to pop is only deleted if it ends up with no child leading to an original leaf.
+		Otherwise, the node is kept with up to one child, leading to branches not being fused / nodes not being collapsed into a single one
+		but be made of several segment delimited by nodes. Useful in the xODT/ALE represntation of speciation-loss events in reconciled gen trees.
+		"""
 		
 		# find node to pop 'np'
 		if isinstance(name, type(self)):
@@ -703,6 +732,20 @@ class Node(object):
 			if f:
 				if not tellReplacingNode: 
 					f.unlink_child(np)
+				gf = f.go_father()
+				if noCollapse:
+					if f.nb_children()==0:
+						# a lineage leading to false leaf has been created;
+						# go up the lineage until meeting a node with more than 1 child
+						while gf and gf.nb_children()==1:
+							f = gf
+							gf = f.go_father()
+						if gf:
+							gf.unlink(f) # (great)-grandfather node 'gf' gets rid of the leafless lineage
+						else:
+							pass # reached the root; proceed as usual (collapse nodes with oldpop)
+					else:
+						return np # stop here
 				# find 'c' the brother node of 'np'
 				if f.nb_children()==1 or (tellReplacingNode and f.nb_children()==2):
 					for child in f.get_children():
@@ -711,30 +754,20 @@ class Node(object):
 							break
 					else:
 						raise IndexError, "where is the brother of node to pop 'np'?"
-					gf = f.go_father()
-					if keepRefToFather or (not gf):
-						# poping under the root or another node to keep referenced
-						if tellReplacingNode:
-							return (c.label(), f.label())
-						else:
-							oldpop(f, c)				
-					else:
-						if tellReplacingNode:
-							return (f.label(), c.label())
-						else:
-							newpop(gf, f, c)
+				collapsed = self.collapse(f, c, gf, tellReplacingNode=tellReplacingNode)
+				if tellReplacingNode: return collapsed
 		return np
 		
 	def dictCollapsed(self, prunedleaves, everyStep=False, new2old=True, silent=True):
 		"""check the pattern of node collapsing if one would prune those leaves"""
-		dcolapsed = {} 		# d[staying] = removed
+		dcollapsed = {} 		# d[staying] = removed
 		for leaf in prunedleaves:
 			collapsednodes = self.pop(leaf, tellReplacingNode=True)
 			# follow the series of pruning steps
-			while collapsednodes[0] in dcolapsed.values():
+			while collapsednodes[0] in dcollapsed.values():
 				collapsednodes = self.pop(collapsednodes[0], tellReplacingNode=True)
-			dcolapsed[collapsednodes[1]] = collapsednodes[0]
-		return dcolapsed
+			dcollapsed[collapsednodes[1]] = collapsednodes[0]
+		return dcollapsed
 		
 	def restrictToLeaves(self, lleaves, useSpeDict=False, force=False):
 		"""returns a copy of the tree restricted to the input leaf set"""
@@ -782,7 +815,7 @@ class Node(object):
 			# orderred node list is given
 			children = order
 		else:
-			children = self.get_sorted_children(order=order)
+			children = self.sorted_generator(order=order)
 		if not (fast or ffel):
 			# first builds a list of existing labels to avoid redundancy of new names
 			if not labels: labs = []
@@ -926,7 +959,15 @@ class Node(object):
 		else:
 			a+=[self]
 		return a
+
+	def iter_leaves(self):
+		"""Return the list of leaves composing the clade defined by the Node."""
 	
+		if self.__children!=[]:
+			for i in self.__children:
+				for leaf in i.get_leaves(): yield leaf
+		else:
+			yield self	
 	
 #####################################
 ############## file input methods:		
@@ -1419,8 +1460,8 @@ class Node(object):
 				d3 = f.distance_root(nullBranchesAsZeroLength=True)
 				return (d+(d2-d3))
 			
-	def mean_leaf_distance(self, excludedLeaves=None):
-		"""Return the mean distance from the node to the leaves below it in a R-friendly manner.
+	def leaf_distances(self, excludedLeaves=None):
+		"""Return the list of distances from the node to the leaves below it.
 		
 		Ignore leaves in excludedLeaves for distance calculation.
 		"""
@@ -1434,8 +1475,27 @@ class Node(object):
 					continue
 			else:
 				ld.append(self.distance(leaf))
+		return ld
+			
+	def mean_leaf_distance(self, excludedLeaves=None):
+		"""Return the mean distance from the node to the leaves below it in a R-friendly manner.
+		
+		Ignore leaves in excludedLeaves for distance calculation.
+		"""
+		ld = self.leaf_distances(excludedLeaves=excludedLeaves)
 		if ld:
 			return sum(ld)/len(ld)
+		else:
+			return 'NA'
+	
+	def max_leaf_distance(self, excludedLeaves=None):
+		"""Return the maximum distance from the node to the leaves below it in a R-friendly manner.
+		
+		Ignore leaves in excludedLeaves for distance calculation.
+		"""
+		ld = self.leaf_distances(excludedLeaves=excludedLeaves)
+		if ld:
+			return max(ld)
 		else:
 			return 'NA'
 			
@@ -1781,10 +1841,10 @@ class Node(object):
 			# some leaves from the full tree are missing in the partial tree
 			prunedleaves = srn - slu
 			# check the pattern of node collpasing if one would prune those leaves
-			dcolapsed = self.dictCollapsed(prunedleaves) 		# d[staying] = removed
+			dcollapsed = self.dictCollapsed(prunedleaves) 		# d[staying] = removed
 		# adds potential collased nodes leading to the reference node
-		while rl in dcolapsed:
-			rl = dcolapsed[rl]
+		while rl in dcollapsed:
+			rl = dcollapsed[rl]
 			lredundant.append(rl)
 		return lredundant
 		
@@ -1807,7 +1867,7 @@ class Node(object):
 			# some leaves from the full tree are missing in the partial tree
 			prunedleaves = srn - slu
 			# check the pattern of node collpasing if one would prune those leaves
-			dcolapsed = self.dictCollapsed(prunedleaves) 		# d[staying] = removed
+			dcollapsed = self.dictCollapsed(prunedleaves) 		# d[staying] = removed
 			for node in partialtree:
 				leavesunder = node.get_leaf_labels()
 				# refernce node is the MRCA of leaves in full tree
@@ -1815,9 +1875,9 @@ class Node(object):
 				rl = refnode.label()
 				lredundant = [rl]
 				# adds potential collased nodes leading to the reference node
-				while rl in dcolapsed:
+				while rl in dcollapsed:
 #					print 'rl', rl
-					rl = dcolapsed[rl]
+					rl = dcollapsed[rl]
 					lredundant.append(rl)
 				dnodecollapsed[node] = lredundant
 		else:
@@ -2805,6 +2865,7 @@ class Node(object):
 			raise ValueError, "Topological problem, node1 and node2 should be in the same sub-root clade"
 		
 		if len(subrootNodes) > 1:
+			# <=> root had > 2 children, after poping one from the list above
 			supsr = self.newnode()					  # if subtree not needing to be changed is a multifurcation, a node is created in place of old root
 			for sr in subrootNodes:
 				sr.change_father( supsr, sr.lg(), sr.bs(), silent=silent )
@@ -2813,7 +2874,7 @@ class Node(object):
 			supsr = subrootNodes[0]
 		if not silent:
 			print 'supsr', supsr.label(), supsr.lg(), supsr.bs()
-		if branch_lengths: nl = newsr.distance_root(nullBranchesAsZeroLength=True)+supsr.lg()
+		if branch_lengths: nl = sumlen(newsr.distance_root(nullBranchesAsZeroLength=True), supsr.lg())
 		else: nl = None
 		supsr.change_father( newsr, newlen=nl, newboot=supsr.bs(), silent=silent ) # subtree not needing to be changed are rooted to newsr ; old root is skipped in topology
 		newsr.add_child(supsr, silent)
@@ -2860,13 +2921,13 @@ class Node(object):
 			else :
 				raise ValueError, "No mapped subRoots"  
 			
-	def newOutgroup(self, outgroup, branch_lengths=True):
+	def newOutgroup(self, outgroup, branch_lengths=True, silent=True):
 		"""reroots the tree so that the specified node is the outgroup"""
 		if outgroup == self:
 			raise ValueError, "New outgroup cannot be the present root"
 		outfat = outgroup.go_father()
 		if not outfat == self:
-			self.reRoot(outgroup, outfat, branch_lengths=branch_lengths)
+			self.reRoot(outgroup, outfat, branch_lengths=branch_lengths, silent=silent)
 			
 	def outgroupInClade(self, outgroup):
 		"""Returns the node where to root the tree so that 'outgroup' (a Node object being a leaf in 'self') is contained by the largest possible clade. 
