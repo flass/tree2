@@ -2728,18 +2728,25 @@ class Node(object):
 		if newlabel: self.edit_label(newlabel)
 
 	def link_child(self, newchild, newlen=None, newboot=None, silent=True):
+		"""attach a child node to the node; falcutatively sets the properties of the interleaving branch in the child's attributes."""
 		self.add_child(newchild, silent=silent)
 		newchild.change_father(self, newlen=newlen, newboot=newboot, silent=silent)
 		
 	def unlink_child(self, child, silent=True):
+		"""detach a child node from the node and erase the interleaving branch properties from the child's attributes.
+		
+		the properties of the former interleaving branch are return as a tuple (length, support).
+		"""
 		if not silent:
 			print "self.__children:", self.__children
 			print "child.__father:", repr(child.go_father())
+		lbs = (child.lg(), child.bs())
 		self.rm_child(child, silent=silent)
 		child.change_father(None, silent=silent)
 		if not silent:
 			print "self.__children:", self.__children
 			print "child.__father:", repr(child.go_father())
+		return lbs
 	
 	def change_father(self, newfat, newlen=None, newboot=None, silent=True):
 		self.__father = newfat
@@ -2757,14 +2764,43 @@ class Node(object):
 		self.__children.remove(child)
 		if not silent: print "%s -/- %s"%(self.label(), child.label())
 	
-	def create_node_above(self, silent=True):
-		"""add a new node above the root"""
-		if not self==self.go_root(): raise IndexError, "%s already has a father"%self.label()
-		newroot = self.newnode()
-		# decrement node label and node_id
-		newroot.add_label('N'+str(int(self.label().strip('N'))-1))
-		newroot.set_node_id(self.nodeid()-1)
-		newroot.link_child(self, newlen=0, newboot=0, silent=silent)
+	def create_node_above(self, label=None, nodeid=None, labprefix='N', newlen=0, newboot=1, silent=True):
+		"""add a new node betwwen the node and its father (if it has one)
+		
+		The branch length attribute value of the bottom node (self) is transferred the new node (thus the old branch length becomes the top branch length).
+		The branch support attribute value of the bottom node (self) is kept as is (thus the old branch support becomes the bottom branch support). 
+		This preserves the absence of (meaningful) support at leaf nodes.
+		The new bottom branch (between self and the new node) will have a length of 0, unless specified otherwise through 'newlen'. 
+		The new top branch (between the potential father and the new node) will have a support of 1, unless specified otherwise through 'newboot'. 
+		returns the new node.
+		"""
+		newnode = self.newnode()
+		if label:
+			# decrement node label -- deprecated, do not use
+			if label=='decrement': newnode.add_label(labprefix+str(int(self.label().strip(labprefix))-1))
+			else: newnode.add_label(label)
+		if nodeid:
+			# decrement node_id -- deprecated, do not use
+			if nodeid=='decrement': newnode.set_node_id(self.nodeid()-1)
+			else: newnode.set_node_id(nodeid)
+		fat = self.father
+		if fat:
+			brlen, bs = fat.unlink_child(self)
+			fat.link_child(newnode, brlen, newboot)
+		newnode.link_child(self, newlen=newlen, newboot=bs, silent=silent)
+		return newnode
+	
+	def create_leafnode_below(self, label=None, nodeid=None, labprefix='N', newlen=0, newboot=None, silent=True):
+		"""add a new leaf node below the node
+		
+		the new branch (between self and the new node) will have a length of 0 and a null support, unless specified otherwise. 
+		returns the new node.		
+		"""
+		newnode = self.newnode()
+		self.link_child(newnode, newlen=newlen, newboot=newboot, silent=silent)
+		if label: newnode.add_label(label)
+		if nodeid: newnode.set_node_id(nodeid)
+		return newnode
 		
 	def reverse_fathertochild(self, silent=True):
 		"""changes father of the Node into its child ; Node becomes orphan : no father, no branch length"""
