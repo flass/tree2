@@ -2922,12 +2922,18 @@ class Node(object):
 			interNode.reverse_fathertochild(silent=silent)	 # path from old newsr to new root where father-child links must be reversed
 
 		# sets new root
-		if branch_lengths: midlength = nephew.lg()/2
-		else: midlength = None
+		if branch_lengths: 
+			if isinstance(branch_lengths, list):
+				if len(branch_lengths)!=2: raise ValueError, "'branch_lengths' parameter should be either a bool or a list of float of length 2"
+				brlenneph, brlenuncl = branch_lengths
+			else:
+				brlenneph, brlenuncl = [nephew.lg()/2]*2
+		else: 
+			brlenneph, brlenuncl = [None]*2
 		self.__children = [uncle, nephew]
 		uncle.rm_child(nephew, silent)
-		uncle.change_father(self, newlen=midlength, silent=silent)
-		nephew.change_father(self, newlen=midlength, silent=silent)
+		nephew.change_father(self, newlen=brlenneph, silent=silent)
+		uncle.change_father(self, newlen=brlenuncl, silent=silent)
 		return self
 
 	def findRootBranch(self, other):
@@ -2962,7 +2968,7 @@ class Node(object):
 		if outgroup == self:
 			raise ValueError, "New outgroup cannot be the present root"
 		outfat = outgroup.go_father()
-		if not outfat == self:
+		if not outfat.is_root():
 			self.reRoot(outgroup, outfat, branch_lengths=branch_lengths, silent=silent)
 			
 	def outgroupInClade(self, outgroup):
