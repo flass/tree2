@@ -134,8 +134,7 @@ class AnnotatedNode(tree2.Node):
 					n += 1
 					clade = indstart.join(l[cladestart:n])
 					node = AnnotatedNode(xml=clade, branch_lengths=branch_lengths, ind=ind, indstart=indstart+ind)
-					node.change_father(newfat=self, newlen=node.lg())
-					self.add_child(newchild=node)
+					self.link_child(node, newlen=node.lg())					
 				else:
 					name = extract_XMLmarker(l[n], 'name', ind=ind)
 					if name:
