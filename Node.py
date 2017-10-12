@@ -2491,7 +2491,7 @@ class Node(object):
 		return s
 
 	def read_commented_lab(self, s, combrackets='[]', labquotes=False, namesAsNum=False, leafNamesAsNum=False):
-		"""Parse node labels and bootstraps; deals with nested comments located next to labels"""
+		"""Parse node labels and bootstraps; deals with nested comments located next to labels (usually within brackets)"""
 		if labquotes:
 			lquote = s.find(labquotes)
 			rquote = s.find(labquotes)
@@ -2513,7 +2513,7 @@ class Node(object):
 				laboot = s[0:lbrack]
 			else:
 				# comment in the middle, wrong syntax
-				raise ValueError, "You better clean your tree from comments"
+				raise ValueError, "Comments brackets in the middle of the label, wrong syntax."
 			if laboot:
 				if namesAsNum or (self.is_leaf() and leafNamesAsNum):
 					self.__lab = str(laboot)
@@ -2522,7 +2522,43 @@ class Node(object):
 						self.__boot=float(laboot)
 					except ValueError, e:
 						self.__lab = str(laboot)
-	
+						
+	def read_commented_branch(self, s, combrackets='[]', bootInComm=True):
+		"""Parse branch annotation (usually length); deals with nested comments located next to annotation (usually within brackets)
+		
+		This is found in RAxML's 'RAxML_bootstrapBranchLabels*' and derived 'RAxML_rootedTrees*' output files.
+		See Czech L. et al. (2017) "A Critical Review on the Use of Support Values in Tree Viewers and Bioinformatics Toolkits." Mol Biol Evol. Jun; 34(6):1535–1542 doi:10.1093/molbev/msx055"
+		"""
+		lbrack = s.find(combrackets[0])
+		rbrack = s.find(combrackets[1])
+		if lbrack==-1 and rbrack ==-1:
+			# clean case, no bracketed comments
+			sbl = s
+			c = None
+		elif lbrack == 0:
+			# comment on the left side of string
+			c = s[lbrack+1:rbrack]
+			sbl = s[rbrack+1:]
+		elif rbrack == len(s)-1:
+			# comment on the right side of string
+			c = s[lbrack+1:rbrack]
+			sbl = s[0:lbrack]
+		else:
+			# comment in the middle, wrong syntax
+			raise ValueError, "Comments brackets in the middle of the branch annotation, wrong syntax."
+		if sbl:
+			try:
+				self.__l = float(sbl)
+			except ValueError, e:
+				raise ValueError, "Incorrect branch length value: '%s' -> must be numerical."%(sbl)
+		if c:
+			if bootInComm:
+				try:
+					self.__boot=float(c)
+				except ValueError, e:
+					raise ValueError, "Incorrect branch support value: '%s' -> must be numerical."%(c)
+			else:
+				self.__comment = c
 
 	def _parser(self, s, branch_lengths=True, keep_comments=False, combrackets='[]', labquotes=False, namesAsNum=False, leafNamesAsNum=False):
 		"""Should not be directly used. Use parser() instead."""
@@ -2556,22 +2592,12 @@ class Node(object):
 		# annotate node
 		if branch_lengths:
 			semicol=s.rfind(':')
-			if semicol>parenth: # deal with node values
-				try:
-					self.__l=float(s[semicol+1:len(s)])
-				except ValueError, e:
-					raise ValueError, "Incorrect branch value -> must be numerical."
-				comlaboot = s[parenth+1:semicol]
-				#~ if not self.is_leaf():
-					#~ try:
-						#~ self.__boot=float(comlaboot)
-					#~ except ValueError, e:
-						#~ self.read_commented_lab(comlaboot, namesAsNum=namesAsNum, combrackets=combrackets, labquotes=labquotes, leafNamesAsNum=leafNamesAsNum)
-				#~ else:
-					#~ self.read_commented_lab(comlaboot, namesAsNum=namesAsNum, combrackets=combrackets, labquotes=labquotes, leafNamesAsNum=leafNamesAsNum)
-				self.read_commented_lab(comlaboot, namesAsNum=namesAsNum, combrackets=combrackets, labquotes=labquotes, leafNamesAsNum=leafNamesAsNum)
-			elif (semicol==-1 and parenth!=-1) or (semicol < parenth):
-			#~ elif (semicol==-1 and parenth!=-1): # added (semicol < parenth) condition to include case when root node has no ':brlength' terminal tag (before ultimate ';')
+			if semicol>parenth:
+				# deal with branch annotations
+				self.read_commented_branch(s[semicol+1:len(s)], combrackets='[]', bootInComm=True)
+				# deal with node annotations
+				self.read_commented_lab(s[parenth+1:semicol], namesAsNum=namesAsNum, combrackets=combrackets, labquotes=labquotes, leafNamesAsNum=leafNamesAsNum)
+			elif (semicol==-1 and parenth!=-1) or (semicol < parenth): # added (semicol < parenth) condition to include case when root node has no ':brlength' terminal tag (before ultimate ';')
 				self.read_commented_lab(s[parenth+1:], namesAsNum=namesAsNum, combrackets=combrackets, labquotes=labquotes, leafNamesAsNum=leafNamesAsNum)
 			elif semicol==-1:
 				raise ValueError, "Incorrect syntax."
