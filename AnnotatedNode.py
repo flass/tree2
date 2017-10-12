@@ -65,6 +65,18 @@ class AnnotatedNode(tree2.Node):
 				
 	def labgetid(self, lab):
 		return self[lab].nodeid()
+	
+	def children_nodeids(self):
+		"""Return the list of direct child node ids."""
+		llc = []
+		for c in self.__children:
+			llc.append(c.nodeid())
+		return llc
+		
+	def father_nodeid(self):
+		f = self.father
+		if f: return f.nodeid()
+		else: return None
 				
 	def complete_node_ids(self, order=1):
 		"""numbering of nodes; default by increasing depth = from root to leaves, but not following the tre structure"""
