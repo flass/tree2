@@ -741,21 +741,22 @@ class Node(object):
 							f = gf
 							gf = f.go_father()
 						if gf:
-							gf.unlink(f) # (great)-grandfather node 'gf' gets rid of the leafless lineage
+							gf.unlink_child(f) # (great)-grandfather node 'gf' gets rid of the leafless lineage
 						else:
 							pass # reached the root; proceed as usual (collapse nodes with oldpop)
 					else:
 						return np # stop here
-				# find 'c' the brother node of 'np'
-				if f.nb_children()==1 or (tellReplacingNode and f.nb_children()==2):
-					for child in f.get_children():
-						if child != np:
-							c = child
-							break
-					else:
-						raise IndexError, "where is the brother of node to pop 'np'?"
-				collapsed = self.collapse(f, c, gf, tellReplacingNode=tellReplacingNode)
-				if tellReplacingNode: return collapsed
+				else:
+					# find 'c', the brother node of 'np', to collapse it with f
+					if f.nb_children()==1 or (tellReplacingNode and f.nb_children()==2):
+						for child in f.get_children():
+							if child != np:
+								c = child
+								break
+						else:
+							raise IndexError, "where is the brother of node to pop 'np'?"
+					collapsed = self.collapse(f, c, gf, tellReplacingNode=tellReplacingNode)
+					if tellReplacingNode: return collapsed
 		return np
 		
 	def dictCollapsed(self, prunedleaves, everyStep=False, new2old=True, silent=True):
