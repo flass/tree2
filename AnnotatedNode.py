@@ -16,12 +16,15 @@ homedir = environ['HOME']
 
 class AnnotatedNode(tree2.Node):
 	"""	"""	
-	def __init__(self, branch_lengths=True, keep_comments=False, **kw):
+	def __init__(self, branch_lengths=True, keep_comments=False, addAttr=[], **kw):
 		""" """		
 		super(AnnotatedNode, self).__init__(branch_lengths=branch_lengths, keep_comments=keep_comments, **kw)		
 		self.__color=[] 			# list of RGB component for coloring (ex: [0, 255, 78])		
 		self.__nodeid = -1			# for Phylariane/Ancestrome trees.
 		self.__taxid = None	
+		for attr in set(addAttr):
+			# create additional public attribute slot, with value None by default
+			setattr(self, attr, None)
 		if kw.has_key('xml'):
 			ind='  '
 			indstart='\n'
@@ -162,7 +165,7 @@ class AnnotatedNode(tree2.Node):
 			hexa='0123456789abcdef'
 			s = ''
 			for col in rgb:
-				s += hexa[col/16]+hexa[col%16]
+				s += hexa[int(col/16)]+hexa[int(col%16)]
 			return s
 		outtree = copy.deepcopy(self)
 		if treename =="":
