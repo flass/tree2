@@ -47,10 +47,10 @@ def sumlen(*L):
 	"""sum branch lengths (floats or None from list L), with None taking value 0 unless only None are summed in which case None is returned""" 
 	l = None
 	for k in L:
-		if k!=None: 
-			if l!=None: l += k
+		if k is not None: 
+			if l is not None: l += k
 			else: l = k
-		return l
+	return l
 
 
 #######################################################################
@@ -156,6 +156,22 @@ class Node(object):
 	def __iter__(self):
 		#~ return self.generator()
 		return self.preordertraversal_generator()
+	
+     # Python 3: 
+	def __bool__(self): 
+		"""Boolean value of an instance of this class (True). 
+	 
+		NB: If this method is not defined, but ``__len__``  is, then the object 
+		is considered true if the result of ``__len__()`` is nonzero. We want 
+		Node instances to always be considered True. 
+		(stolen from BioPython)
+		__len__() points to get_all_children() which should always return a
+		non-empty list with at least [self]; this saves time though.
+		"""
+		return True
+	
+	# Python 2: 
+	__nonzero__ = __bool__ 
 		
 	def __len__(self):
 		return len(self.get_all_children())
@@ -681,8 +697,7 @@ class Node(object):
 				elif attr=='_Node__children':
 					f._Node__children = []
 					for gc in c.get_children():
-						f.add_child(gc)
-						gc.change_father(f, newlen=gc.lg(), newboot=gc.bs())
+						f.link_child(gc, newlen=gc.lg(), newboot=gc.bs())
 						if gc.go_father() is c: raise IndexError
 					c._Node__children = []
 				elif attr=='_Node__father':
@@ -733,7 +748,7 @@ class Node(object):
 		if isinstance(name, type(self)):
 			np = name
 		elif isinstance(name, str):
-			np=self[name]
+			np = self[name]
 		else:
 			raise TypeError, "element to be poped must be a %s object or a string (label) corresponding to a node in self"%type(self)
 		# NB: if types are right but no node from self is matched, None is returned
@@ -760,7 +775,7 @@ class Node(object):
 					# find 'c', the brother node of 'np', to collapse it with f
 					#~ if f.nb_children()==1 or (tellReplacingNode and f.nb_children()==2): # remove rule to add support for multifurcated trees... must test if that does not lead to bugs
 					for child in f.get_children():
-						if child != np:
+						if child is not np:
 							c = child
 							break
 					else:
@@ -1656,11 +1671,12 @@ class Node(object):
 			
 	def is_child(self, node1):
 		"""returns bollean stating if the Node is below node1 in the tree"""
+		root = self.go_root()
 		f = self.__father
 		while f:
 			if f is node1:
 				return True
-			elif f is self.go_root():
+			elif f is root:
 				return False
 			else:
 				f=f.go_father()	
@@ -1670,7 +1686,7 @@ class Node(object):
 		for node in lnodes:
 			if node.is_child(self):
 				if returnList: lchild.append(node)
-				return True
+				else: return True
 		else:
 			if returnList: return lchild
 			else: return False
