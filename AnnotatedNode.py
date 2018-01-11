@@ -23,7 +23,7 @@ class AnnotatedNode(tree2.Node):
 		self.__nodeid = -1			# for Phylariane/Ancestrome trees.
 		self.__taxid = None	
 		for attr in set(addAttr):
-			# create additional public attribute slot, with value None by default
+			# create extra public attribute slot, with value None by default
 			setattr(self, attr, None)
 		if kw.has_key('xml'):
 			ind='  '
@@ -34,7 +34,12 @@ class AnnotatedNode(tree2.Node):
 			
 	def newnode(self, branch_lengths=True, keep_comments=False, **kw):
 		"""class-specific instance generator for construction of trees of AnnotatedNodes"""
-		return AnnotatedNode(branch_lengths=branch_lengths, keep_comments=keep_comments, **kw)
+		an = AnnotatedNode(branch_lengths=branch_lengths, keep_comments=keep_comments, **kw)
+		for attr in self.__dict__:
+			if not attr.startswith('_'):
+				# copy the extra public attribute slot, with value None by default
+				setattr(an, attr, None)
+		return an
 	
 	def color(self):
 		"""Return the color of the Node."""
