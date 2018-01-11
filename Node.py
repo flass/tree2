@@ -309,6 +309,16 @@ class Node(object):
 		#~ return a
 	# rather use an alias for code consistency
 	get_all_children = get_preordertraversal_children
+				
+	def get_all_children_cache(self, cachedict={}):
+		"""Return the list of all nodes below the Node, including itself, in a pre-order traversal"""
+		a=[self]
+		for i in self.__children:
+			if i in cachedict:
+				a+=cachedict[i]
+			else:
+				a+=i.get_all_children_cache(cachedict)
+		return a
 	
 	def postordertraversal_generator(self, deepfirst=False, deeplast=False):
 		"""recursively yield all the nodes below the Node, including itself in a post-order traversal"""
@@ -673,7 +683,7 @@ class Node(object):
 					for gc in c.get_children():
 						f.add_child(gc)
 						gc.change_father(f, newlen=gc.lg(), newboot=gc.bs())
-						if gc.go_father() == c: raise IndexError
+						if gc.go_father() is c: raise IndexError
 					c._Node__children = []
 				elif attr=='_Node__father':
 					pass
@@ -748,13 +758,13 @@ class Node(object):
 						return np # stop here
 				else:
 					# find 'c', the brother node of 'np', to collapse it with f
-					if f.nb_children()==1 or (tellReplacingNode and f.nb_children()==2):
-						for child in f.get_children():
-							if child != np:
-								c = child
-								break
-						else:
-							raise IndexError, "where is the brother of node to pop 'np'?"
+					#~ if f.nb_children()==1 or (tellReplacingNode and f.nb_children()==2): # remove rule to add support for multifurcated trees... must test if that does not lead to bugs
+					for child in f.get_children():
+						if child != np:
+							c = child
+							break
+					else:
+						raise IndexError, "where is the brother of node to pop 'np'?"
 					collapsed = self.collapse(f, c, gf, tellReplacingNode=tellReplacingNode)
 					if tellReplacingNode: return collapsed
 		return np
@@ -776,7 +786,7 @@ class Node(object):
 		# maps to the common ances tor of all leaves
 		mrca = c.map_to_node(lleaves, useSpeDict=useSpeDict, force=force)
 		# extract this subtree
-		if mrca == c: st = c
+		if mrca is c: st = c
 		elif mrca: st = c.pop(mrca)
 		else: return None
 		# remove the other leaves
@@ -1307,7 +1317,7 @@ class Node(object):
 				Out.close()
 		else:
 			Out.write( "".join(pattern[:-1])+"+"+"---+"*int(not self.is_root())+" - -"*(branchlength-lenpat)*int(bool(self.label()))+" "+self.label()+'\n' )
-			if not out=="print":
+			if out!="print":
 				Out.close()
 			children = self.get_children()
 			if lastSon:
@@ -1425,17 +1435,20 @@ class Node(object):
 		if self.go_root() != n.go_root():
 			raise IndexError, "nodes are not parts of the same tree"
 		d1 = self.depth()
-		d2 = n.depth()		
-		if n in self.get_all_children():
+		d2 = n.depth()
+		selfch = self.get_all_children()	
+		if n in selfch:
 			return (d2-d1)
 		elif self in n.get_all_children():
 			return (d1-d2)
 		else:
 			d = 1
 			f = self.go_father()
-			while (n not in f.get_all_children()):
+			fch = f.get_all_children_cache({self:selfch})
+			while (n not in fch):
 				d += 1
 				f = f.go_father()
+				fch = f.get_all_children_cache({f:fch})
 			d3 = f.depth()
 			return (d+(d2-d3))
 		
@@ -1443,7 +1456,7 @@ class Node(object):
 		"""Return the distance (sum of branch lengths) on the path separating the Node from node $1."""
 		if self.go_root() != n.go_root():
 			raise IndexError, "nodes are not parts of the same tree"		
-		elif self==n:
+		elif self is n:
 			return float(0)
 		else:
 			d1 = self.distance_root(nullBranchesAsZeroLength=True)
@@ -1520,7 +1533,7 @@ class Node(object):
 		"""return the total length of the tree under the node"""
 		lg = 0
 		for node in self:
-			if node==self and excludeSelf: continue
+			if node is self and excludeSelf: continue
 			if node.lg()!=None:
 				lg += node.lg()
 		return lg
@@ -1645,9 +1658,9 @@ class Node(object):
 		"""returns bollean stating if the Node is below node1 in the tree"""
 		f = self.__father
 		while f:
-			if f==node1:
+			if f is node1:
 				return True
-			elif f==self.go_root():
+			elif f is self.go_root():
 				return False
 			else:
 				f=f.go_father()	
@@ -1663,7 +1676,7 @@ class Node(object):
 			else: return False
 				
 	def is_childorself(self, node1):
-		return ((self==node1) or self.is_child(node1))
+		return ((self is node1) or self.is_child(node1))
 				
 	def is_brother(self, node1):
 		"""returns bollean stating if the Node is neighbor of node1 in the tree"""
@@ -1671,7 +1684,7 @@ class Node(object):
 			bro = self.go_brother()
 		except ValueError:
 			raise IndexError, "Node %s has no brother"%self.__lab
-		if node1==bro:
+		if node1 is bro:
 			return True
 		else:
 			return False
@@ -1691,9 +1704,9 @@ class Node(object):
 			caurec = reftree[cautiousrec]
 		else:
 			raise ValueError, "'cautiousrec' and 'cautiousdon' must be either both tree.Node objects or both strings (labels of tree.Node objects)"
-		if caurec.depth() >= 2 and caudon == caurec.go_uncle():
+		if caurec.depth() >= 2 and caudon is caurec.go_uncle():
 			return True
-		elif caudon.depth() >= 2 and caurec == caudon.go_uncle():
+		elif caudon.depth() >= 2 and caurec is caudon.go_uncle():
 			return True
 		else:
 			return False		
@@ -2072,7 +2085,7 @@ class Node(object):
 		(dlab_length, repcount) = self.compareToCollection(ncolfile, exactMatch=exactMatch, branch_lengths=branch_lengths)
 		root = self.go_root()
 		for node in self:
-			if not node.is_leaf() or node==root:
+			if not node.is_leaf() or node is root:
 				if node.label() in dlab_length:
 					lengths = dlab_length[node.label()]
 					node.set_bs( float(len(lengths))/float(repcount) * 100)
@@ -2085,7 +2098,7 @@ class Node(object):
 			if node.label() in dlab_length:
 				lengths = dlab_length[node.label()]
 				node.set_lg( sum(lengths)/float(len(lengths)) )
-				if not node.is_leaf() or node==treeroot:
+				if not node.is_leaf() or node is treeroot:
 					node.set_bs( float(len(lengths))/float(repcount) * 100)		
 	
 #####################################	   
@@ -2125,14 +2138,14 @@ class Node(object):
 			c = fat.get_children()
 #			print fat.get_leaf_labels()
 			if len(c)==2:
-				if self == c[0]:
+				if self is c[0]:
 					return c[1]
-				elif self == c[1]:
+				elif self is c[1]:
 					return c[0]
 				else:
 					raise ValueError, "Node %s not in his father's child list"%self.__lab
 			else:
-				raise ValueError, "Node %s's father has %s child(ren)"%(self.label(),len(c))
+				raise ValueError, "Node %s's father has %s child(ren): go_brother() is not determined"%(self.label(),len(c))
 		else:
 			raise ValueError, "Node %s has no father"%self.__lab
 			
@@ -2164,7 +2177,7 @@ class Node(object):
 			print "self\n", self
 			print "n\n", n
 			raise IndexError, "nodes are not parts of the same tree"
-		elif self==n:
+		elif self is n:
 			if returnLabels: return [self.label()]
 			else: return [self]
 		else:
@@ -2385,7 +2398,7 @@ class Node(object):
 		sufix = ""
 		path = root.path_to(self)
 		for node in path:
-			if (node.label() in labels) or node==self:
+			if (node.label() in labels) or node is self:
 				sufix += '.'+node.label().lstrip(labprefix)
 		return sufix
 
@@ -2904,12 +2917,12 @@ class Node(object):
 			raise TypeError, "expected a pair of tree.Node instances"
 		if self!=self.go_root():
 			raise ValueError, "Reroots only full tree/root node"		
-		if node1==self or node2==self:
+		if node1 is self or node2 is self:
 			raise ValueError, "Cannot reroot between an internal node and present root, please provide internal nodes or leaves"
-		if node1.go_father()==node2:
+		if node1.go_father() is node2:
 			uncle = node2
 			nephew = node1
-		elif node2.go_father()==node1:
+		elif node2.go_father() is node1:
 			uncle = node1
 			nephew = node2
 		elif node1.go_father()==node2.go_father()==self:
@@ -2992,7 +3005,7 @@ class Node(object):
 			
 	def newOutgroup(self, outgroup, branch_lengths=True, silent=True):
 		"""reroots the tree so that the specified node is the outgroup"""
-		if outgroup == self:
+		if outgroup is self:
 			raise ValueError, "New outgroup cannot be the present root"
 		outfat = outgroup.go_father()
 		if not outfat.is_root():
@@ -3150,7 +3163,7 @@ class Node(object):
 			while set(upnode.get_leaf_labels()) <= set(recleaftoreroot):
 				initnode = upnode
 				upnode = initnode.go_father()
-			if upnode == subtree:
+			if upnode is subtree:
 				# initleaf is located in the monophyletic part of 'recleaftoreroot'
 				continue # the for initleaf loop, to find one under the other part of 'recleaftoreroot'
 			# brother of 'initnode' will serve as outgroup
