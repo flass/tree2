@@ -23,12 +23,11 @@ import cPickle
 
 #~ from tree2.Utils import *
 
-from tree2.Node import Node
+from tree2.Node import Node, sumlen
 from tree2.AnnotatedNode import AnnotatedNode
 from tree2.ReferenceTree import ReferenceTree
 from tree2.GeneTree import GeneTree
 #~ from tree2.Exceptions import *
-#~ from tree2.FwdTreeSim import *
 
 #######################################################################
 ########## misc functions
