@@ -1520,7 +1520,7 @@ class Node(object):
 		Ignore leaves in excludedLeaves for distance calculation.
 		"""
 		ld = self.leaf_distances(excludedLeaves=excludedLeaves)
-		sld = sumlen(ld)
+		sld = sumlen(*ld)
 		if sld is None:
 			return 'NA'
 		else:
