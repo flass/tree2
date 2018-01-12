@@ -782,6 +782,8 @@ class Node(object):
 						raise IndexError, "where is the brother of node to pop 'np'?"
 					collapsed = self.collapse(f, c, gf, tellReplacingNode=tellReplacingNode)
 					if tellReplacingNode: return collapsed
+			else:
+				if tellReplacingNode: return (np.label(), np.label())
 		return np
 		
 	def dictCollapsed(self, prunedleaves, everyStep=False, new2old=True, silent=True):
@@ -1447,45 +1449,51 @@ class Node(object):
 			
 	def node_distance(self,n):
 		"""Return the node distance (number of nodes) on the path separating the Node from node $1."""
-		if self.go_root() != n.go_root():
-			raise IndexError, "nodes are not parts of the same tree"
-		d1 = self.depth()
-		d2 = n.depth()
-		selfch = self.get_all_children()	
-		if n in selfch:
-			return (d2-d1)
-		elif self in n.get_all_children():
-			return (d1-d2)
+		if self.go_root() is not n.go_root():
+			raise IndexError, "nodes are not parts of the same tree"	
+		elif self is n:
+			return 0
 		else:
-			d = 1
-			f = self.go_father()
-			fch = f.get_all_children_cache({self:selfch})
-			while (n not in fch):
-				d += 1
-				f = f.go_father()
-				fch = f.get_all_children_cache({f:fch})
-			d3 = f.depth()
-			return (d+(d2-d3))
+			d1 = self.depth()
+			d2 = n.depth()
+			selfch = self.get_all_children()	
+			if n in selfch:
+				return (d2-d1)
+			elif self in n.get_all_children():
+				return (d1-d2)
+			else:
+				d = 1
+				f = self.go_father()
+				fch = f.get_all_children_cache({self:selfch})
+				while (n not in fch):
+					d += 1
+					f = f.go_father()
+					fch = f.get_all_children_cache({f:fch})
+				d3 = f.depth()
+				return (d+(d2-d3))
 		
 	def distance(self,n):
 		"""Return the distance (sum of branch lengths) on the path separating the Node from node $1."""
-		if self.go_root() != n.go_root():
+		if self.go_root() is not n.go_root():
 			raise IndexError, "nodes are not parts of the same tree"		
 		elif self is n:
 			return float(0)
 		else:
 			d1 = self.distance_root(nullBranchesAsZeroLength=True)
 			d2 = n.distance_root(nullBranchesAsZeroLength=True)
-			if n in self.get_all_children():
+			selfch = self.get_all_children()
+			if n in selfch:
 				return (d2-d1)
 			elif self in n.get_all_children():
 				return (d1-d2)
 			else:
 				d = self.__l
 				f = self.go_father()
-				while (n not in f.get_all_children()):
+				fch = f.get_all_children_cache({self:selfch})
+				while (n not in fch):
 					d += f.lg()
 					f = f.go_father()
+					fch = f.get_all_children_cache({f:fch})
 				d3 = f.distance_root(nullBranchesAsZeroLength=True)
 				return (d+(d2-d3))
 			
@@ -1497,8 +1505,8 @@ class Node(object):
 		if not excludedLeaves: excludedLeaves = []
 		ld=[]
 		for leaf in self.get_leaves():
-			if leaf.label() in excludedLeaves:
-				if self.label() == leaf.label():
+			if (leaf.label() in excludedLeaves) or (leaf in excludedLeaves):
+				if self is leaf:
 					ld.append(0)
 				else:
 					continue
@@ -1512,10 +1520,11 @@ class Node(object):
 		Ignore leaves in excludedLeaves for distance calculation.
 		"""
 		ld = self.leaf_distances(excludedLeaves=excludedLeaves)
-		if ld:
-			return sum(ld)/len(ld)
-		else:
+		sld = sumlen(ld)
+		if sld is None:
 			return 'NA'
+		else:
+			return sld/len(ld)
 	
 	def max_leaf_distance(self, excludedLeaves=None):
 		"""Return the maximum distance from the node to the leaves below it in a R-friendly manner.
@@ -1523,10 +1532,11 @@ class Node(object):
 		Ignore leaves in excludedLeaves for distance calculation.
 		"""
 		ld = self.leaf_distances(excludedLeaves=excludedLeaves)
-		if ld:
-			return max(ld)
-		else:
+		mld = max(ld)
+		if mld is None:
 			return 'NA'
+		else:
+			return mld
 			
 	def lineage_age(self, excludedLeaves=None):
 		"""Similar to Node.mean_leaf_distance(), except that it adds half of its own branch length to give an approximate age of the lineage"""
@@ -1549,7 +1559,7 @@ class Node(object):
 		lg = 0
 		for node in self:
 			if node is self and excludeSelf: continue
-			if node.lg()!=None:
+			if node.lg() is not None:
 				lg += node.lg()
 		return lg
 		
@@ -1557,7 +1567,7 @@ class Node(object):
 		if not lignored: lignored = []
 		l = []
 		for node in self:
-			if (not node in lignored) and (node.lg()!=None):
+			if (not node in lignored) and (node.lg() is not None):
 				l.append(node.lg())
 		l.sort()
 		if len(l)%2==1:
@@ -1614,7 +1624,7 @@ class Node(object):
 	
 	def __imul__(self, x):
 		""" Recursively multiplies the length of the branches that are under this node by factor x (>0)."""
-		if x>0:
+		if x>=0:
 			for i in self.__children:
 				i.__l*=x
 				i*=x
