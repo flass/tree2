@@ -805,7 +805,9 @@ class Node(object):
 		mrca = c.map_to_node(lleaves, useSpeDict=useSpeDict, force=force)
 		# extract this subtree
 		if mrca is c: st = c
-		elif mrca: st = c.pop(mrca)
+		elif mrca:
+			if returnCopy: st = c.pop(mrca)
+			else: st = mrca
 		else: return None
 		# remove the other leaves
 		for leaflab in st.get_leaf_labels():
