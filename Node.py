@@ -797,10 +797,11 @@ class Node(object):
 			dcollapsed[collapsednodes[1]] = collapsednodes[0]
 		return dcollapsed
 		
-	def restrictToLeaves(self, lleaves, useSpeDict=False, force=False):
+	def restrictToLeaves(self, lleaves, useSpeDict=False, force=False, returnCopy=True):
 		"""returns a copy of the tree restricted to the input leaf set"""
-		c = copy.deepcopy(self)
-		# maps to the common ances tor of all leaves
+		if returnCopy: c = copy.deepcopy(self)
+		else: c = self
+		# maps to the common ancestor of all leaves
 		mrca = c.map_to_node(lleaves, useSpeDict=useSpeDict, force=force)
 		# extract this subtree
 		if mrca is c: st = c
