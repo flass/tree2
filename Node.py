@@ -776,14 +776,14 @@ class Node(object):
 						return np # stop here
 				else:
 					# find 'c', the brother node of 'np', to collapse it with f
-					#~ if f.nb_children()==1 or (tellReplacingNode and f.nb_children()==2): # remove rule to add support for multifurcated trees... must test if that does not lead to bugs
-					for child in f.get_children():
-						if child is not np:
-							c = child
-							break
-					else:
-						raise IndexError, "where is the brother of node to pop 'np'?"
-					collapsed = self.collapse(f, c, gf, tellReplacingNode=tellReplacingNode, silent=(not verbose))
+					if f.nb_children()==1 or tellReplacingNode: # edit rule (tellReplacingNode and f.nb_children()==2) into just (tellReplacingNode) to restore support for multifurcated trees... must test if that does not lead to bugs
+						for child in f.get_children():
+							if child is not np:
+								c = child
+								break
+						else:
+							raise IndexError, "where is the brother of node to pop 'np'?"
+						collapsed = self.collapse(f, c, gf, tellReplacingNode=tellReplacingNode, silent=(not verbose))
 					if tellReplacingNode: return collapsed
 			else:
 				if tellReplacingNode: return (np.label(), np.label())
