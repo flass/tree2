@@ -683,10 +683,11 @@ class Node(object):
 
 
 	@staticmethod
-	def collapse(f, c, gf=None, tellReplacingNode=False, keepRefToFather=False):
+	def collapse(f, c, gf=None, tellReplacingNode=False, keepRefToFather=False, silent=True):
 		"""how to operate fusion of two given nodes, either by removing the intermediate node (newpop) or mutating the intermediate into the top one (oldpop)"""
 		def oldpop(f, c):				
 			""" old implementation: `mutation' of the father node into its non-poped child"""
+			if not silent: print "oldpop(%s, %s)"%(str(f.label()), str(c.label()))
 			df = f.__dict__
 			dc = c.__dict__
 			for attr in df:
@@ -697,7 +698,7 @@ class Node(object):
 				elif attr=='_Node__children':
 					f._Node__children = []
 					for gc in c.get_children():
-						f.link_child(gc, newlen=gc.lg(), newboot=gc.bs())
+						f.link_child(gc, newlen=gc.lg(), newboot=gc.bs(), silent=silent)
 						if gc.go_father() is c: raise IndexError
 					c._Node__children = []
 				elif attr=='_Node__father':
@@ -709,10 +710,11 @@ class Node(object):
 		
 		def newpop(gf, f, c):
 			""" new implementation : no `mutation' of the node object, the father node is disconnected from above and below, and the child is reconnected to the grand-father"""
-			gf.add_child(c)
-			c.change_father(gf, newlen=sumlen(f.lg(),c.lg()), newboot=max(f.bs(), c.bs()))
-			gf.rm_child(f)
-			f.rm_child(c)
+			if not silent: print "newpop(%s, %s, %s)"%(str(gf.label()), str(f.label()), str(c.label()))
+			gf.add_child(c, silent=silent)
+			c.change_father(gf, newlen=sumlen(f.lg(),c.lg()), newboot=max(f.bs(), c.bs()), silent=silent)
+			gf.rm_child(f, silent=silent)
+			f.rm_child(c, silent=silent)
 		
 		if keepRefToFather or (not gf):
 			# poping under the root or another node to keep referenced
@@ -727,7 +729,7 @@ class Node(object):
 				newpop(gf, f, c)
 		return None
 
-	def pop(self, name, keepRefToFather=False, tellReplacingNode=False, noCollapse=False):
+	def pop(self, name, keepRefToFather=False, tellReplacingNode=False, noCollapse=False, verbose=False):
 		"""Return the Node with this name, and removes it from the tree.
 		
 		New implementation: father node is completely disconected from the tree, its other child are grafted to the grand-father
@@ -741,7 +743,7 @@ class Node(object):
 		
 		if noCollapse is True, the  father node of the node to pop is only deleted if it ends up with no child leading to an original leaf.
 		Otherwise, the node is kept with up to one child, leading to branches not being fused / nodes not being collapsed into a single one
-		but be made of several segment delimited by nodes. Useful in the xODT/ALE represntation of speciation-loss events in reconciled gen trees.
+		but be made of several segment delimited by nodes. Useful in the xODT/ALE representation of speciation-loss events in reconciled gen trees.
 		"""
 		
 		# find node to pop 'np'
@@ -759,6 +761,7 @@ class Node(object):
 					f.unlink_child(np)
 				gf = f.go_father()
 				if noCollapse:
+					if verbose: print "noCollapse on node %s"%str(f.label())
 					if f.nb_children()==0:
 						# a lineage leading to false leaf has been created;
 						# go up the lineage until meeting a node with more than 1 child
@@ -780,7 +783,7 @@ class Node(object):
 							break
 					else:
 						raise IndexError, "where is the brother of node to pop 'np'?"
-					collapsed = self.collapse(f, c, gf, tellReplacingNode=tellReplacingNode)
+					collapsed = self.collapse(f, c, gf, tellReplacingNode=tellReplacingNode, silent=(not verbose))
 					if tellReplacingNode: return collapsed
 			else:
 				if tellReplacingNode: return (np.label(), np.label())
