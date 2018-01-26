@@ -799,16 +799,16 @@ class Node(object):
 		
 	def restrictToLeaves(self, lleaves, useSpeDict=False, force=False, returnCopy=True):
 		"""returns a copy of the tree restricted to the input leaf set"""
-		if returnCopy: c = copy.deepcopy(self)
-		else: c = self
-		# maps to the common ancestor of all leaves
-		mrca = c.map_to_node(lleaves, useSpeDict=useSpeDict, force=force)
-		# extract this subtree
-		if mrca is c: st = c
-		elif mrca:
-			if returnCopy: st = c.pop(mrca)
-			else: st = mrca
-		else: return None
+		if not returnCopy:
+			st = self
+		else:
+			c = copy.deepcopy(self)
+			# maps to the common ancestor of all leaves
+			mrca = c.map_to_node(lleaves, useSpeDict=useSpeDict, force=force)
+			# extract this subtree
+			if mrca is c: st = c
+			elif mrca:    st = c.pop(mrca)
+			else:         return None
 		# remove the other leaves
 		for leaflab in st.get_leaf_labels():
 			if not useSpeDict: leaf = leaflab
