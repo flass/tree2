@@ -131,14 +131,19 @@ class Node(object):
 
 	def __getitem__(self,n):
 		"""Return the Node with this name."""
-		if self.__lab==n: return self
-		for s in self.__children:
-			if s.label()==n:
-				return s
-			else:
-				t=s[n]	  # <==> t = s.__getitem__(n)   (recursive function)
-				if t:
-					return t
+		if type(n) is str:
+			if self.__lab==n: return self
+			for s in self.__children:
+				if s.label()==n:
+					return s
+				else:
+					t=s[n]	  # <==> t = s.__getitem__(n)   (recursive function)
+					if t:
+						return t
+		elif type(n) is tuple:
+			return self.map_to_node(n)
+		else:
+			raise TypeError, "unexpeted type %s for key: %s"%(str(type(n)), repr(n))
 		return None
 		
 	def __getattr__(self, attr):
@@ -763,8 +768,8 @@ class Node(object):
 				if noCollapse:
 					if verbose: print "noCollapse on node %s"%str(f.label())
 					if f.nb_children()==0:
-						# a lineage leading to false leaf has been created;
-						# go up the lineage until meeting a node with more than 1 child
+						# a lineage leading to false leaf (i.e. a terminal node that is not a true tip) has been created;
+						# go up the lineage and cut off fals leaf nodes until meeting a node with more than 1 child (i.e. with another descendant lineage than the false leaf)
 						while gf and gf.nb_children()==1:
 							f = gf
 							gf = f.go_father()
