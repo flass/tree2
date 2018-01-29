@@ -130,7 +130,7 @@ class Node(object):
 		return Node(branch_lengths=branch_lengths, keep_comments=keep_comments, **kw)
 
 	def __getitem__(self,n):
-		"""Return the Node with this name."""
+		"""Return the Node with input label. If input is a sequence of labels or nodes, find their MRCA"""
 		if type(n) is str:
 			if self.__lab==n: return self
 			for s in self.__children:
@@ -140,8 +140,8 @@ class Node(object):
 					t=s[n]	  # <==> t = s.__getitem__(n)   (recursive function)
 					if t:
 						return t
-		elif type(n) is tuple:
-			return self.map_to_node(n)
+		elif type(n) in (tuple, list):
+			return self.coalesce(n)
 		else:
 			raise TypeError, "unexpeted type %s for key: %s"%(str(type(n)), repr(n))
 		return None
