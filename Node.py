@@ -92,6 +92,11 @@ class Node(object):
 		
 		* Leaf or internal node labels sometimes happen to be integers, as is the case of ClonalFrame trees (http://www.xavierdidelot.xtreemhost.com/clonalframe.htm).
 		Specify [namesAsNum=True] or [leafNamesAsNum=True] for adequate parsing of numeric labels at all nodes or leaf nodes only, respectively.
+		
+		* A new tree with a multifurcated ('star') toppology can be created using the keyword 'lleaves', specifying the names of the leaves directly attached to the instance (root node).
+		
+		* Names and values of arbitrary attributes can be passed as a dict (or iterable coercible to a dict) via keyword argument 'setattr'; 
+		if these attributes have same name as default ones, the values passed via 'settatr' override the default values. 
 		"""
 	
 		self.__l=kw.get('l') 		# length of the branch to the father-Node
@@ -120,6 +125,13 @@ class Node(object):
 						c = self.newnode()
 						c.add_label(leaf)
 						self.link_child(c, newlen=0, newboot=0)
+		if 'setattr' in kw:
+			try:
+				# try to coerce the object to a dict
+				dattr = dict(kw['setattr'])
+			except ValueError, e:
+				raise ValueError, "encountered when setting attribute names and values for Node instance, expecting a dict or object coercible to a dict: '%s'"%str(e)
+			self.__dict__.update(dattr)
 
 			
 #####################################################
