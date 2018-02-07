@@ -170,6 +170,10 @@ class Node(object):
 		"""Return printable string in Newick format of the sub-tree defined by the Node."""
 		return self.newick()
 		
+	def __repr__(self):
+		"""Return printable string naming the class, number of children nodes and label the Node."""
+		return "<%s object: %d nodes; label:%s>"%(str(type(self)).split("'")[1], len(self), repr(self.label()))
+		
 	def __iter__(self):
 		#~ return self.generator()
 		return self.preordertraversal_generator()
