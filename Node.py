@@ -1467,7 +1467,7 @@ class Node(object):
 			if nullBranchesAsZeroLength:
 				l = float(0)
 			else:
-				raise ValueError, "No branch length at node %s: %s"%(self.__lab, str(self))
+				raise ValueError, "No branch length at node %s"%(repr(self))
 		else:
 			l = self.__l
 		if self.__father:
@@ -2076,16 +2076,27 @@ class Node(object):
 		else:
 			return False
 			
-	def hasSameTopology(self, other):
+	def hasSameTopology(self, other, checkInternalLabels=False):
 		"""recursively test if al nodes in $1 (other) are monophyletic in self (reference tree)"""
-		if set(self.get_leaf_labels())==set(other.get_leaf_labels()):
+		sleaflab = set(self.get_leaf_labels())
+		oleaflab = set(other.get_leaf_labels())
+		if sleaflab==oleaflab:
+			if checkInternalLabels:
+				sintlab = set(self.get_children_labels()) - sleaflab
+				ointlab = set(other.get_children_labels()) - oleaflab
+				if sintlab!=ointlab: return False
+			# recursion
 			ochildren = other.get_children()
 			schildren = self.__children
+			scrange = range(len(schildren))
 			for ochild in ochildren:
-				for schild in schildren:
+				for j in scrange:
+					schild = schildren[j]
 					# explore every child to match clades
-					if schild.hasSameTopology(ochild):
-						break
+					if schild.hasSameTopology(ochild, checkInternalLabels=checkInternalLabels):
+						# remove value from range, so this combination is not evaluated in further children matching search
+						scrange.remove(j)
+						break # for schild, escape the return False
 				else:
 					return False
 			else:
