@@ -1014,7 +1014,14 @@ class Node(object):
 		else:
 			a+=[self]
 		return a
-
+	
+	def get_one_leaf(self):
+		a = self
+		while a.children:
+			a = a.get_children()[0]
+		else:
+			return a
+	
 	def iter_leaves(self):
 		"""Return the list of leaves composing the clade defined by the Node."""
 	
