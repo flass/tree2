@@ -66,7 +66,7 @@ class Node(object):
 	tree root-Node, which is equivalent to the whole tree.
 	"""
 
-	def __init__(self, branch_lengths=True, keep_comments=False, combrackets='[]', labquotes=False, namesAsNum=False, leafNamesAsNum=False, **kw):
+	def __init__(self, branch_lengths=True, keep_comments=False, combrackets='[]', labquotes=False, namesAsNum=False, leafNamesAsNum=False, bootInComm=False, **kw):
 		"""Create a Node.
 		
 		* Keyword argument to build directly the Node from a Newick string: [newick=string] or [nwk=string]
@@ -110,13 +110,13 @@ class Node(object):
 		for kwnwk in ['newick', 'nwk']:
 			if kwnwk in kw:
 				# read from a Newick string
-				self.parser(s=kw[kwnwk], branch_lengths=branch_lengths, combrackets=combrackets, labquotes=labquotes, keep_comments=keep_comments, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+				self.parser(s=kw[kwnwk], branch_lengths=branch_lengths, combrackets=combrackets, labquotes=labquotes, keep_comments=keep_comments, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum, bootInComm=bootInComm)
 				break
 		else:
 			for kwfic in ['file', 'fic']:
 				if kwfic in kw:
 					# read from file containing a Newick string
-					self.read_nf(a=kw[kwfic], branch_lengths=branch_lengths, combrackets=combrackets, labquotes=labquotes, keep_comments=keep_comments, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+					self.read_nf(a=kw[kwfic], branch_lengths=branch_lengths, combrackets=combrackets, labquotes=labquotes, keep_comments=keep_comments, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum, bootInComm=bootInComm)
 					break
 			else:
 				if 'lleaves' in kw:
@@ -2608,7 +2608,7 @@ class Node(object):
 					except ValueError, e:
 						self.__lab = str(laboot)
 						
-	def read_commented_branch(self, s, combrackets='[]', bootInComm=True):
+	def read_commented_branch(self, s, combrackets='[]', bootInComm=False):
 		"""Parse branch annotation (usually length); deals with nested comments located next to annotation (usually within brackets)
 		
 		This is found in RAxML's 'RAxML_bootstrapBranchLabels*' and derived 'RAxML_rootedTrees*' output files.
@@ -2645,7 +2645,7 @@ class Node(object):
 			else:
 				self.__comment = c
 
-	def _parser(self, s, branch_lengths=True, keep_comments=False, combrackets='[]', labquotes=False, namesAsNum=False, leafNamesAsNum=False):
+	def _parser(self, s, branch_lengths=True, keep_comments=False, combrackets='[]', labquotes=False, namesAsNum=False, leafNamesAsNum=False, bootInComm=False):
 		"""Should not be directly used. Use parser() instead."""
 		parenth=s.rfind(')')
 		# deal with tree structure
@@ -2679,7 +2679,7 @@ class Node(object):
 			semicol=s.rfind(':')
 			if semicol>parenth:
 				# deal with branch annotations
-				self.read_commented_branch(s[semicol+1:len(s)], combrackets='[]', bootInComm=True)
+				self.read_commented_branch(s[semicol+1:len(s)], combrackets=combrackets, bootInComm=bootInComm)
 				# deal with node annotations
 				self.read_commented_lab(s[parenth+1:semicol], namesAsNum=namesAsNum, combrackets=combrackets, labquotes=labquotes, leafNamesAsNum=leafNamesAsNum)
 			elif (semicol==-1 and parenth!=-1) or (semicol < parenth): # added (semicol < parenth) condition to include case when root node has no ':brlength' terminal tag (before ultimate ';')
@@ -2752,7 +2752,7 @@ class Node(object):
 #~ #		print self.bs(), self.comment(), self.lg()
 		#~ return
 	
-	def parser(self, s, branch_lengths=True, keep_comments=False, combrackets='[]', labquotes=False, namesAsNum=False, leafNamesAsNum=False):
+	def parser(self, s, branch_lengths=True, keep_comments=False, combrackets='[]', labquotes=False, namesAsNum=False, leafNamesAsNum=False, bootInComm=False):
 		"""Fill the Node's attributes from parsing $1 string.
 	
 		Follows the Newick standard for coding trees.
@@ -2777,7 +2777,7 @@ class Node(object):
 				#~ s += ":0" 
 			
 		if s:
-			self._parser(s, branch_lengths=branch_lengths, keep_comments=keep_comments, combrackets=combrackets, labquotes=labquotes, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+			self._parser(s, branch_lengths=branch_lengths, keep_comments=keep_comments, combrackets=combrackets, labquotes=labquotes, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum, bootInComm=bootInComm)
 			if branch_lengths and self==self.go_root():
 				self.__l = 0 # sets distance above root at 0.
 		else:
