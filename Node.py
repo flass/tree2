@@ -1034,14 +1034,14 @@ class Node(object):
 #####################################
 ############## file input methods:		
 	
-	def read_nf(self, a, branch_lengths=True, keep_comments=False, combrackets='[]', labquotes=False, namesAsNum=False, leafNamesAsNum=False):
+	def read_nf(self, a, branch_lengths=True, keep_comments=False, combrackets='[]', labquotes=False, namesAsNum=False, leafNamesAsNum=False, bootInComm=False):
 		"""Read the $1 file containing a unique tree in Newick format and builds the Node from it."""
 
 		if type(a)==str:
 			f=open(a,'r')
 			l=f.readline()
 			f.close()
-			self.parser(l, branch_lengths, keep_comments, combrackets=combrackets, labquotes=labquotes, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+			self.parser(l, branch_lengths, keep_comments, combrackets=combrackets, labquotes=labquotes, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum, bootInComm=bootInComm)
 		else:
 			raise ValueError, "Invalid file name."
 		return
