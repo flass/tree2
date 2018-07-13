@@ -141,21 +141,32 @@ class Node(object):
 		"""class-specific instance generator for construction of trees of Nodes"""
 		return Node(branch_lengths=branch_lengths, keep_comments=keep_comments, **kw)
 
+	def labelgetnode(self, n, mustMatch=False):
+		"""Return the first child of Node on a pre-order traversal labelled with intput string 'n'.
+		
+		If mustMatch=True, raises an IndexError when no node if found; default is False, as used in __getitem__().
+		Assume type of input is controlled ahead of call (as in __getitem__()) so does not check for efficiency saving. 
+		"""
+		if self.__lab==n: return self
+		for c in self.__children:
+			if c.label()==n:
+				return c
+			else:
+				t=c.labelgetnode(n, mustMatch=mustMatch)  # (recursive function)
+				if t:
+					return t
+		if not mustMatch: return None
+		else: return IndexError, "no node labelled %s in tree"%n
+
 	def __getitem__(self,n):
-		"""Return the Node with input label. If input is a sequence of labels or nodes, find their MRCA"""
+		"""<==> self[n]. Return the Node with input label. If input is an iterable returning labels or node objects, find their MRCA"""
 		if type(n) is str:
-			if self.__lab==n: return self
-			for s in self.__children:
-				if s.label()==n:
-					return s
-				else:
-					t=s[n]	  # <==> t = s.__getitem__(n)   (recursive function)
-					if t:
-						return t
-		elif type(n) in (tuple, list):
+			return self.labelgetnode(n)
+		#~ elif type(n) in (tuple, list):
+		elif hasattr(type(n), '__iter__'):
 			return self.coalesce(n)
 		else:
-			raise TypeError, "unexpeted type %s for key: %s"%(str(type(n)), repr(n))
+			raise TypeError, "unexpected type %s for key: %s"%(str(type(n)), repr(n))
 		return None
 		
 	def __getattr__(self, attr):
@@ -590,7 +601,7 @@ class Node(object):
 		if asSet: lspe = list(set(lspe))
 		return lspe
 		
-	def dictLeafLabelsToSpecies(self, llab=None):
+	def dictLeafLabelsToSpecies(self, llab=None, splitparam=('_',1)):
 		"""Return dictionary of leaf labels (under the HOGENOM model SPECIES_NUMREPLICON_PROTID) to species identifiers
 			
 		can be restricted to a particular species set	
@@ -598,7 +609,7 @@ class Node(object):
 		d = {}
 		for leaf in self.get_leaves():
 			if (not llab) or (leaf.label() in llab):
-				spe = leaf.label().split('_',1)[0]
+				spe = leaf.label().split(splitparam[0], splitparam[1])[0]
 				d[leaf.label()] = spe
 		return d
 		 		
@@ -979,16 +990,26 @@ class Node(object):
 		"""Return the number of leaves under this node."""
 		return len(self.get_leaves())	
 			
-	def get_leaf_labels(self, comments=False):
-		"""Return the list of labels of the leaves defined by the Node, following a post-order traversal."""
-		
-		a=[]
-		if self.__children!=[]:
-			for i in self.__children:
-				a += i.get_leaf_labels(comments=comments)
+	def iter_leaf_labels(self, comments=False):
+		"""Return an iterator of labels of the leaves under the Node, following a post-order traversal."""
+		if self.__children:
+			for c in self.__children:
+				for leaflab in c.leaf_labels(comments=comments):
+					yield leaflab
 		else:
-			a.append(self.label(comments=comments))
-		return a
+			yield self.label(comments=comments)
+		
+
+	def get_leaf_labels(self, comments=False):
+		"""Return the list of labels of the leaves defined under the Node, following a post-order traversal."""
+		#~ a=[]
+		#~ if self.__children!=[]:
+			#~ for c in self.__children:
+				#~ a += c.get_leaf_labels(comments=comments)
+		#~ else:
+			#~ a.append(self.label(comments=comments))
+		#~ return a
+		return [leaflab for leaflab in self.iter_leaf_labels()]
 		
 	def get_sorted_leaf_labels(self, comments=False, order=1):
 		return [node.label(comments=comments) for node in self.get_sorted_children(order=order) if node.is_leaf()]
@@ -1690,10 +1711,7 @@ class Node(object):
 
 	def is_leaf(self):
 		"""returns bollean stating if Node is a terminal node/leaf"""
-		if self.get_leaves() == [self]:
-			return True
-		else:
-			return False
+		return (not bool(self.__children))
 			
 	def is_cherry(self):
 		"""returns bollean stating if Node has only leaves below"""
@@ -1715,15 +1733,23 @@ class Node(object):
 			
 	def is_child(self, node1):
 		"""returns bollean stating if the Node is below node1 in the tree"""
-		root = self.go_root()
+		#~ root = self.go_root()
+		#~ f = self.__father
+		#~ while f:
+			#~ if f is node1:
+				#~ return True
+			#~ elif f is root:
+				#~ return False
+			#~ else:
+				#~ f=f.go_father()	
 		f = self.__father
 		while f:
 			if f is node1:
 				return True
-			elif f is root:
-				return False
 			else:
-				f=f.go_father()	
+				f=f.go_father()
+		else:
+			return False	
 				
 	def is_parent_of_any(self, lnodes, returnList=False):
 		lchild = []
@@ -3303,8 +3329,8 @@ class Node(object):
 		
 	### automated classification of sequences into coherent clades/genotypes 
 
-	def prune_genotypes(self, relvarthresh=5, minseqwithin=5, minvarwithin=1e-5, minbs=0, fixnbcut=False, returnLabels=True, annotateOnTree=False, multipass=True, silent=True):
-		"""apply reccursive search for branches that increase significantly the variance compared to"""
+	def prune_genotypes(self, relvarthresh=5, minseqwithin=5, minvarwithin=0, minbs=0, fixnbcut=0, returnLabels=True, annotateOnTree=False, multipass=True, silent=True):
+		"""reccursively search for branches that increase significantly the variance of branch lengths compared to the remainder of the branches in the clade below, and prune the outliers"""
 		t = copy.deepcopy(self)
 		lst = []
 		nbcut= 0
@@ -3357,7 +3383,7 @@ class Node(object):
 			llst = lst
 		else:
 			if nbcut>=1:
-				if not silent: print 'second pass (recursive)'
+				if not silent: print 'next pass (recursive)'
 				print len(lst), fixnbcut
 				llst = []
 				for st in lst:
@@ -3370,7 +3396,7 @@ class Node(object):
 						nbcut += len(rlst)-1
 						llst += rlst
 			elif fixnbcut:
-				if not silent: print 'second pass (recursive)'
+				if not silent: print 'next pass (recursive)'
 				print len(lst), fixnbcut
 				llst = []
 				for st in lst:
