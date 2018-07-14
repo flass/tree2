@@ -577,7 +577,7 @@ class Node(object):
 			outtree[leaf].edit_label(dspe_prot[leaf])
 		return outtree
 		
-	def listSpecies(self, llab=None, ignoreTransfers=False, asSet=True, splitparam=('_',1)):
+	def listSpecies(self, llab=None, ignoreTransfers=False, asSet=True, splitparam=('_',1), **kw):
 		"""Return list of identifiers of species present in leaves 
 		
 		by default, split is done at 1st occurence of '_'.
@@ -991,10 +991,10 @@ class Node(object):
 		return len(self.get_leaves())	
 			
 	def iter_leaf_labels(self, comments=False):
-		"""Return an iterator of labels of the leaves under the Node, following a post-order traversal."""
+		"""Return an iterator of labels of the leaves under the Node, recursing down the tree in a post-order traversal."""
 		if self.__children:
 			for c in self.__children:
-				for leaflab in c.leaf_labels(comments=comments):
+				for leaflab in c.iter_leaf_labels(comments=comments):
 					yield leaflab
 		else:
 			yield self.label(comments=comments)
@@ -1797,14 +1797,14 @@ class Node(object):
 		else:
 			return False		
 		
-	def map_to_node(self, lleaves, force=False, useSpeDict=False):
+	def map_to_node(self, lleaves, force=False, useSpeDict=False, **kw):
 		"""finds deepest node/clade in tree that includes all leaves in input label list = MRCA = most recent common ancestor of the leaf set
 		
 		uses a desending algorithm
 		"""
 		def getSpeSet(node, useSpeDict):
 			if not useSpeDict: s = set(node.get_leaf_labels())
-			else: s = set(node.listSpecies())
+			else: s = set(node.listSpecies(**kw))
 			return s
 			
 		ll = getSpeSet(self, useSpeDict)
