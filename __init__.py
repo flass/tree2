@@ -355,7 +355,7 @@ def archaeopteryx(node, treename="", arch_exec_path='archaeopteryx', tmpfiledir=
 		raise TypeError, "no appropriate method for %s object"%str(type(node))
 		
 
-### Phylogenetic computation functions
+### Phylogenetic inference functions
 
 def phyml(node, alnfilepath, outtreefilepath, PhyMLpath='/usr/bin/phyml', quiet=True, **kw):
 	"""perform PhyML command with the node as an user input tree
@@ -368,10 +368,8 @@ def phyml(node, alnfilepath, outtreefilepath, PhyMLpath='/usr/bin/phyml', quiet=
 	"""
 	node.phyml(alnfilepath=alnfilepath, outtreefilepath=outtreefilepath, PhyMLpath=PhyMLpath, quiet=quiet, **kw)
 
-
-
 ###################################
-### distance-associated	functions
+### selection detection functions
 
 def dNoverdS(dNtree, dStree, factor=3, ignoreThreshold=0.05, medianForIgnored=True):
 	"""from two trees bearing as branch lengths the counts of non-synonimous or synonimous substitutions, respectively, makes a tree with dN/dS ratio as branch lengths
@@ -449,3 +447,19 @@ def writeMRP(mrp, nfout=None, outfmt='phylip', codeout={True:'1', False:'0', Non
 		else: raise ValueError, "unsuported output format: %s"%outfmt
 		fout.write(''.join(rowout)+"\n")
 	fout.close()
+
+###################################################
+### tree-scoring functions
+
+def unicity(node, lspecies=[], dlabspe={}, useSpeDict=False, **kw):
+	"""compute unicity score of species set at leaves under the node.
+	
+	Unicity score is defined at the node of a genetree as the product of 
+	non-zero counts of gene copies from a single species/organism in the subtree.
+	cf. Bigot, Lassalle, Daubin and Perriere, 2011. BMC Bioinformatics.
+	"""
+	if lspecies: lspe = lspecies
+	elif dlabspe: lspe = [dlabspe[lab] for lab in node.iter_leaf_labels()]
+	elif useSpeDict: lspe = node.listSpecies(**kw)
+	else: lspe = node.get_leaf_labels()
+	return reduce(lambda x,y: x*y, [lspe.count(spe) for spe in set(lspe)], long(1))

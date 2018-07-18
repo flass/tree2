@@ -910,7 +910,7 @@ class Node(object):
 				if not silent: print lab
 				
 	def check_unique_labelling(self):
-		nodelabs = self.get_childre()
+		nodelabs = self.get_children()
 		assert len(set(nodelabs))==len(nodelabs)
 		
 #####################################################
@@ -1016,7 +1016,6 @@ class Node(object):
 	
 	def get_leaf_sequences(self):
 		"""Return the list of sequences of the leaves defined by the Node."""
-	
 		a=[]
 		if self.__children!=[]:
 			for i in self.__children:
@@ -1027,7 +1026,6 @@ class Node(object):
 
 	def get_leaves(self):
 		"""Return the list of leaves composing the clade defined by the Node."""
-	
 		a=[]
 		if self.__children!=[]:
 			for i in self.__children:
@@ -1044,11 +1042,11 @@ class Node(object):
 			return a
 	
 	def iter_leaves(self):
-		"""Return the list of leaves composing the clade defined by the Node."""
-	
+		"""Return iterator of leaves composing the clade defined by the Node."""
 		if self.__children!=[]:
 			for i in self.__children:
-				for leaf in i.get_leaves(): yield leaf
+				#~ for leaf in i.get_leaves(): yield leaf
+				for leaf in i.iter_leaves(): yield leaf
 		else:
 			yield self	
 	
