@@ -156,7 +156,30 @@ class Node(object):
 				if t:
 					return t
 		if not mustMatch: return None
-		else: return IndexError, "no node labelled %s in tree"%n
+		else: return IndexError, "no node labelled '%s' in tree"%n
+
+	def labelmatchgetnode(self, n, mustMatch=False, side='start'):
+		"""Return the first child of Node on a pre-order traversal wich label matches with intput string 'n'.
+		
+		If side is 'start', string must match the start of input string, if 'end', mustmatch its end.
+		If mustMatch=True, raises an IndexError when no node if found; default is False, as used in __getitem__().
+		Assume type of input is controlled ahead of call (as in __getitem__()) so does not check for efficiency saving. 
+		"""
+		if self.__lab==n: return self
+		for c in self.__children:
+			if side=='start':
+				if c.label().startswith(n):
+					return c
+			elif side=='end':
+				if c.label().endswith(n):
+					return c
+			else:
+				raise ValueError, "incorrect value for 'side' parameter"
+			t=c.labelgetnode(n, mustMatch=mustMatch, side=side)  # (recursive function)
+			if t:
+				return t
+		if not mustMatch: return None
+		else: return IndexError, "no node label %s matched '%s' in tree"%(side, n)
 
 	def __getitem__(self,n):
 		"""<==> self[n]. Return the Node with input label. If input is an iterable returning labels or node objects, find their MRCA"""
