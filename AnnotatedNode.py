@@ -164,7 +164,7 @@ class AnnotatedNode(tree2.Node):
 ###########################
 ### screen output methods
 			
-	def nexus(self, treename="", figtree=True, ignoreBS=False, branch_lengths=True, unrooted=False, mini=False):
+	def nexus(self, treename="", figtree=True, ignoreBS=False, branch_lengths=True, unrooted=False, mini=False, **kw):
 		"""Return NEXUS string of the sub-tree defined by the Node."""
 		def hexstr(rgb):
 			hexa='0123456789abcdef'
