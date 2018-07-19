@@ -164,7 +164,7 @@ class AnnotatedNode(tree2.Node):
 ###########################
 ### screen output methods
 			
-	def nexus(self, treename="", figtree=True, ignoreBS=False, branch_lengths=True, unrooted=False):
+	def nexus(self, treename="", figtree=True, ignoreBS=False, branch_lengths=True, unrooted=False, mini=False):
 		"""Return NEXUS string of the sub-tree defined by the Node."""
 		def hexstr(rgb):
 			hexa='0123456789abcdef'
@@ -185,11 +185,12 @@ class AnnotatedNode(tree2.Node):
 						node.edit_comment('!color = #%s'%hexstr(node.color()), mode='append' )
 					if isinstance(node, tree2.GeneTree):
 						node.edit_comment('!events = %s'%str(node.getEvents()), mode='append' )
-		nex = '#NEXUS\nbegin taxa;\n\tdimensions ntax=%d;\n\ttaxlabels\n\t%s\n;\nend;\n'%( self.nb_leaves(), '\n\t'.join(self.get_leaf_labels(comments=True)) )
-		nex += '\nbegin trees;\n\ttree %s = [&R] %s\nend;\n'%(treename, outtree.newick(ignoreBS=ignoreBS, branch_lengths=branch_lengths, unrooted=unrooted))
-		if figtree==True:
-			nex += '\nbegin figtree;\n\tset nodeLabels.displayAttribute="bootstrap";\n\tset nodeLabels.fontSize=12;\n\tset nodeLabels.isShown=true;\n\tset nodeLabels.significantDigits=0;\n\tset polarLayout.alignTipLabels=false;\n\tset polarLayout.showRoot=true;\n\tset rectilinearLayout.alignTipLabels=false;\n\tset tipLabels.displayAttribute="Names";\n\tset tipLabels.fontSize=12;\n\tset trees.order=false;\n\tset trees.orderType="increasing";\n\tset trees.rooting=false;\n\tset trees.transform=false;\n\tset trees.transformType="equal";\nend;'
-		return nex
+		nex0 = '[&R] '+outtree.newick(ignoreBS=ignoreBS, branch_lengths=branch_lengths, unrooted=unrooted)
+		if mini: return nex0
+		nex1 = '#NEXUS\nbegin taxa;\n\tdimensions ntax=%d;\n\ttaxlabels\n\t%s\n;\nend;\n'%( self.nb_leaves(), '\n\t'.join(self.get_leaf_labels(comments=True)) )
+		nex2 = '\nbegin trees;\n\ttree %s = %s\nend;\n'%(treename, nex0)
+		nex3 = tree2.figtreeblock if figtree else ''
+		return nex1+nex2+nex3
 
 	def phyloXML(self, ind="  ", indstart="\n", treetype=None):
 		"""Returns PhyloXML string of the sub-tree defined by the Node.

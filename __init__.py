@@ -154,8 +154,10 @@ def read_nexus(nf, treeclass="Node", returnDict=True, translateLabels=True, getT
 		return dnexus
 	else:
 		return ltrees
-		
-def write_nexus(ltrees, nfout, ltax, dtranslate={}, ltreenames=[], mode='w', onlytrees=False, **kw):
+
+figtreeblock = '\nbegin figtree;\n\tset nodeLabels.displayAttribute="bootstrap";\n\tset nodeLabels.fontSize=12;\n\tset nodeLabels.isShown=true;\n\tset nodeLabels.significantDigits=0;\n\tset polarLayout.alignTipLabels=false;\n\tset polarLayout.showRoot=true;\n\tset rectilinearLayout.alignTipLabels=false;\n\tset tipLabels.displayAttribute="Names";\n\tset tipLabels.fontSize=12;\n\tset trees.order=false;\n\tset trees.orderType="increasing";\n\tset trees.rooting=false;\n\tset trees.transform=false;\n\tset trees.transformType="equal";\nend;'
+	
+def write_nexus(ltrees, nfout, ltax, dtranslate={}, ltreenames=[], mode='w', onlytrees=False, figtree=False, **kw):
 	"""combine in one nexus file a collection of trees with the same set of taxa represented"""
 	if ltreenames: assert len(ltreenames)==len(ltrees)
 	if dtranslate:
@@ -190,9 +192,13 @@ def write_nexus(ltrees, nfout, ltax, dtranslate={}, ltreenames=[], mode='w', onl
 	for k in range(len(ltrees)):
 		if ltreenames: treename = ltreenames[k]
 		else: treename = 'tree_%d'%k
-		fout.write('   tree %s = %s\n'%(treename, ltrees[k].newick(**kw)))
+		treek = ltrees[k]
+		streek = treek.nexus(mini=True, treename=treename, **kw) if isinstance(treek, AnnotatedNode) else treek.newick(**kw)
+		fout.write('   tree %s = %s\n'%(treename, streek))
 	else:
 		fout.write('end;')
+	if figtree:
+		fout.write(figtreeblock)
 	fout.close()
 			
 
