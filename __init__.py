@@ -155,7 +155,22 @@ def read_nexus(nf, treeclass="Node", returnDict=True, translateLabels=True, getT
 	else:
 		return ltrees
 
-figtreeblock = '\nbegin figtree;\n\tset nodeLabels.displayAttribute="bootstrap";\n\tset nodeLabels.fontSize=12;\n\tset nodeLabels.isShown=true;\n\tset nodeLabels.significantDigits=0;\n\tset polarLayout.alignTipLabels=false;\n\tset polarLayout.showRoot=true;\n\tset rectilinearLayout.alignTipLabels=false;\n\tset tipLabels.displayAttribute="Names";\n\tset tipLabels.fontSize=12;\n\tset trees.order=false;\n\tset trees.orderType="increasing";\n\tset trees.rooting=false;\n\tset trees.transform=false;\n\tset trees.transformType="equal";\nend;'
+figtreeblock = '\n\t'.join(['\nbegin figtree;', 
+'set nodeLabels.displayAttribute="bootstrap";', 
+'set nodeLabels.fontSize=12;', 
+'set nodeLabels.isShown=true;', 
+'set nodeLabels.significantDigits=0;', 
+'set polarLayout.alignTipLabels=false;', 
+'set polarLayout.showRoot=true;', 
+'set rectilinearLayout.alignTipLabels=false;', 
+'set tipLabels.displayAttribute="Names";', 
+'set tipLabels.fontSize=12;', 
+'set trees.order=false;', 
+'set trees.orderType="increasing";', 
+'set trees.rooting=false;', 
+'set trees.transform=false;', 
+'set trees.transformType="equal";', 
+'set appearance.branchLineWidth=2.0;'])+'\nend;'
 	
 def write_nexus(ltrees, nfout, ltax, dtranslate={}, ltreenames=[], mode='w', onlytrees=False, figtree=False, **kw):
 	"""combine in one nexus file a collection of trees with the same set of taxa represented"""
