@@ -1639,7 +1639,28 @@ class Node(object):
 				lg += node.lg()
 		return lg
 		
+	def tree_imbalance(self, totlen=None):
+		a = self.treelength()
+		if totlen: b = totlen
+		else: b = self.go_root().treelength()
+		return abs(b - a)/b
+		
+	def reRoot_max_tree_balance(self):
+		tree = self.go_root()
+		totlen = tree.treelength()
+		maxbalnode = None
+		minimbal = 1
+		for node in tree:
+			imbal = node.tree_imbalance(totlen)
+			if imbal < minimbal:
+				maxbalnode = node
+				minimbal = imbal
+		if maxbalnode:
+			tree.newOutgroup(maxbalnode)
+		return tree.go_root()
+		
 	def treemedian(self, lignored=None):
+		"""return the median branch length of the tree under the node"""
 		if not lignored: lignored = []
 		l = []
 		for node in self:
