@@ -1656,7 +1656,8 @@ class Node(object):
 				maxbalnode = node
 				minimbal = imbal
 		if maxbalnode:
-			tree.newOutgroup(maxbalnode)
+			if maxbalnode is not tree:
+				tree.newOutgroup(maxbalnode)
 		return tree.go_root()
 		
 	def treemedian(self, lignored=None):
