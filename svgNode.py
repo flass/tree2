@@ -30,12 +30,14 @@ def groomStyle(style):
 		if not qualif in lqual: lqual.append(qualif) # keep appearance order
 	return '; '.join(["%s:%s"%(qualif, dqual[qualif]) for qualif in lqual])+'; '
 
+def hexrgb(rgbtup):
+	return '#'+''.join(["%02x"%val for val in rgbtup])
+
 def randRGBColGen(ranges=None):
 	colranges = {'R':(.3, .9), 'G':(.3, .9), 'B':(.3, .9)}
 	colranges.update(ranges)
 	rgb = [int(255*uniform(a, b)) for a,b in [colranges[col] for col in 'RGB']]
-	hexrgb = '#'+''.join(["%02x"%val for val in rgb])
-	return hexrgb
+	return hexrgb(rgb)
 
 def svgAddArrowMarkerDef(name='arrow', widthheight=None, color='red'):
 	# set class variables for svgTransfer() calls
@@ -99,7 +101,7 @@ def getDictNodeCoords(tree, **kw):
 			dxy[nodelab] = (dxy[nodelab][0]+offset[0], dxy[nodelab][1]+offset[1])
 	return dxy
 
-def svgPathAB(a, b, dxy=None, squared=True, bezier=False, style=None, marker=None, aorbit=(0,0), borbit=(0,0)):
+def svgPathAB(a, b, dxy=None, squared=True, bezier=False, style=None, marker=None, aorbit=(0,0), borbit=(0,0), half=None):
 	"""writes a line from point a to point b; these can be given directly as coordinate tupples, or as key to a coordinate dictionary dxy."""
 	if not style: st = "stroke:black; stroke-width:1; fill:none; "
 	else: st = style
@@ -130,16 +132,18 @@ def svgPathAB(a, b, dxy=None, squared=True, bezier=False, style=None, marker=Non
 		pathdata += " L %d %d"%(bx, by - correctend)   ##### correction for marker coords should account for angle
 	return '<path style="%s" d="%s" />\n'%(st, pathdata)
 
-def svgPathToFather(node, dxy, squared=True, style=None):
+def svgPathToFather(node, dxy, squared=True, style=None, half=None):
 	"""path data for SVG representatioon of the branch from the node to its father"""
 	f = node.go_father()
 	if f:
-		return svgPathAB(node.label(), f.label(), dxy=dxy, squared=squared, style=style)
+		return svgPathAB(node.label(), f.label(), dxy=dxy, squared=squared, style=style, half=half)
 	else:
 		return ''
 
-def svgTransfer(don, rec, dxy, tree, donbrheight=.5, recbrheight=.5, style=None, color=None, marker='arrow', orbit=(0,0)):
-	if not style: st = "stroke:%s; stroke-width:2; fill:none; "%color
+def svgTransfer(don, rec, dxy, tree, donbrheight=.5, recbrheight=.5, style=None, marker='arrow', orbit=(0,0), arc=True, **kw):
+	color = kw.get('color', 'black')
+	width = float(kw.get('width', 2.0))
+	if not style: st = "stroke:%s; stroke-width:%d; fill:none; "%(color, width)
 	else: st = style
 	donx, dony = dxy[don]
 	recx, recy = dxy[rec]
@@ -147,7 +151,7 @@ def svgTransfer(don, rec, dxy, tree, donbrheight=.5, recbrheight=.5, style=None,
 	donfatx, donfaty = dxy[tree[don].go_father().label()]
 	depxy = (donfatx+(donx-donfatx)*donbrheight, dony) # startpoint of transfer
 	arrxy = (recfatx+(recx-recfatx)*recbrheight, recy) # endpoint of transfer
-	xml  = svgPathAB(depxy, arrxy, style=st, marker=marker, bezier=(arrxy[0]-depxy[0]), borbit=orbit)
+	xml  = svgPathAB(depxy, arrxy, style=st, marker=marker, bezier=((arrxy[0]-depxy[0]) if arc else False), borbit=orbit)
 	xml += svgEventLab('T', x=arrxy[0], y=arrxy[1], color=color, inCircle=True, orbit=orbit)
 	return xml
 		
@@ -208,21 +212,33 @@ def svgTree(tree, labels=True, supports=True, comment=None, fontsize=10, textorb
 	modstyle = kw.get('modstyle', "")
 	padstyle = kw.get('padstyle', "stroke-dasharray: 5, 5; ")
 	treeorder = kw.get('treeorder', 2)
-	dbranchwidth = kw.get('branchwidths', {})
-	if  'transfers' in kw:
+	bw = kw.get('branchwidths')
+	dbranchwidth = bw if isinstance(bw, dict) else None
+	branchwidthattr = bw if isinstance(bw, str) else None
+	if 'transfers' in kw:
 		# prepare for tracing of transfer arrows
 		xml += svgAddArrowMarkerDef(name='arrow')
+		transfercol = kw.get('transfercolor')
+		transfercol = transfercol if isinstance(transfercol, str) else hexrgb(transfercol)
+		transpathtype = kw.get('transferpathtype', 'arc')
+		transferwidth = kw.get('transferwidth')
 	if dnodecoord: dxy = dnodecoord
 	else: dxy = getDictNodeCoords(tree, offset=(100, 100), **kw)
 	xend, yend = svgPlotSize(dxy)
 	### draw tree
-	if dbranchwidth:
-		# first a tree with branch thickness proprtional of presence probability
+	# (optionally) first a tree with branch thickness proprtional of presence probability
+	if branchwidthattr or dbranchwidth:
 		for node in tree.get_sorted_children(order=treeorder):
-			widstyle = "stroke:grey; stroke-width:%f; fill:none; stroke-linejoin:round; stroke-linecap:round; "%(dbranchwidth[node.label()]*brwidthfac)
-			xml += svgPathToFather(node, dxy, style=widstyle)
+			if branchwidthattr: nodebw = getattr(node, branchwidthattr, 0)
+			elif dbranchwidth: nodebw = dbranchwidth.get(node.label(), 0)
+			if nodebw:
+				# only draw branches with some thichness
+				nodecol = getattr(node, '_AnnotatedNode__color', 'grey')
+				nodecols = nodecol if isinstance(nodecol, str) else hexrgb(nodecol)
+				widstyle = "stroke:%s; stroke-width:%f; fill:none; stroke-linejoin:round; stroke-linecap:round; "%(nodecols, nodebw*brwidthfac)
+				xml += svgPathToFather(node, dxy, style=widstyle)
+	# (then) a tree with simple solid branches
 	for node in tree.get_sorted_children(order=treeorder):
-		# (then) a tree with simple solid branches
 		style = groomStyle(dnodestyle.get(node, defaultstyle+modstyle))
 		pstyle = groomStyle(style+padstyle)
 		xml += svgPathToFather(node, dxy, style=style)
@@ -267,7 +283,14 @@ def svgTree(tree, labels=True, supports=True, comment=None, fontsize=10, textorb
 	if kw.get('treetype')=='species':
 		nnodeevts = {}
 		for don, rec, freq in kw.get('transfers', []):
-			xml += svgTransfer(don, rec, dxy, tree, marker=None, color=randRGBColGen({'G':(0, .6)}), orbit=(nnodeevts.setdefault(rec, 0)*5, 0))
+			transcol = transfercol if transfercol else randRGBColGen({'G':(0.0, 0.6)})
+			if not transferwidth:
+				transwid = 2.0*brwidthfac
+			elif transferwidth=='freq':
+				transwid = freq*brwidthfac
+			else:
+				transwid = transferwidth*brwidthfac
+			xml += svgTransfer(don, rec, dxy, tree, marker=None, color=transcol, width=transwid, orbit=(nnodeevts.setdefault(rec, 0)*5, 0), arc=(transpathtype=='arc'))
 			nnodeevts[rec] += 1
 			#~ xml += svgEventLab('%.2f'%freq, x=dxy[rec][0], y=dxy[rec][1], color=tcol)
 		for nodelab, freq in kw.get('duplications', []):

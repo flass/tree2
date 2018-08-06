@@ -44,6 +44,10 @@ class AnnotatedNode(tree2.Node):
 	def color(self):
 		"""Return the color of the Node."""
 		return self.__color
+	
+	def hexrgbcolor(self):
+		"""Return the RGB string representation (as in SVG standard) of the color of the Node."""
+		return '#'+''.join(["%02x"%val for val in self.__color])
 			
 	def edit_color(self, col):
 		"""edits the color attached to the node"""
