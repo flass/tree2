@@ -98,13 +98,13 @@ def read_check_newick(nfintree, treeclass="Node", **kw):
 	except ValueError:
 		print "could not find a label for every leaf; try looking for digit-only names"
 		lnan = False
-		intree = tree2.Node(file=nfintree, keep_comments=kc, leafNamesAsNum=lnan, **kw)
+		intree = tc(file=nfintree, keep_comments=kc, leafNamesAsNum=lnan, **kw)
 	try:
 		checkBS(intree)
 	except ValueError:
 		print "could not find branch supports; try looking in comments field"
 		kc = False
-		intree = tree2.Node(file=nfintree, keep_comments=kc, leafNamesAsNum=lnan, **kw)
+		intree = tc(file=nfintree, keep_comments=kc, leafNamesAsNum=lnan, **kw)
 		for n in intree:
 			if str(n.comment()).isdigit():
 				n.set_bs(float(n.comment()))
