@@ -71,7 +71,7 @@ def checkBS(tree, maxNone=2):
 def checkLeafLabel(tree, maxNone=0):
 	"""count how many leaf nodes have no labels; raise an error when above threshold (zero)"""
 	nnodenolab = 0
-	for node in tree.get_leaves:
+	for node in tree.get_leaves():
 		if node.label() is None: nnodenolab += 1
 	
 	if nnodenolab > maxNone:
