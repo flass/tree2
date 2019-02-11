@@ -54,9 +54,62 @@ def updateappend(d1, d2):
 	for key in d2:
 		if key in d1: d1[key] += d2[key]
 		else: d1[key] = d2[key]
+
+def checkBS(tree, maxNone=2):
+	"""count how many node have no branch support documented; raise an error when above threshold
 	
+	by default allow a maximum of 2 without support to account for branches created when rooting
+	"""
+	nnodenobs = 0
+	for node in tree:
+		if node.is_leaf(): continue
+		if node.bs() is None: nnodenobs += 1
+	
+	if nnodenobs > maxNone:
+		raise ValueError, "too many (%d) nodes without branch support documented"%nnodenobs
+
+def checkLeafLabel(tree, maxNone=0):
+	"""count how many leaf nodes have no labels; raise an error when above threshold (zero)"""
+	nnodenolab = 0
+	for node in tree.get_leaves:
+		if node.label() is None: nnodenolab += 1
+	
+	if nnodenolab > maxNone:
+		raise ValueError, "too many (%d) leaf nodes without label"%nnodenobs
+
 #######################################################################
 ########## file I/O functions
+
+def read_newick(nf, treeclass="Node", **kw):
+	tc = eval(treeclass)
+	if not issubclass(tc, Node): raise ValueError, "wrong tree class specification"
+	return tc(file=nf, **kw)
+
+def read_check_newick(nfintree, treeclass="Node", **kw):
+	tc = eval(treeclass)
+	if not issubclass(tc, Node): raise ValueError, "wrong tree class specification"
+	kc = False
+	lnan = False
+	for op in ['keep_comments', 'leafNamesAsNum']:
+		if op in kw: raise ValueError, "it is unsafe to specify the '%s' in this function"%op
+	intree = tc(file=nfintree, keep_comments=kc, leafNamesAsNum=lnan, **kw)
+	try:
+		checkLeafLabel(intree)
+	except ValueError:
+		print "could not find a label for every leaf; try looking for digit-only names"
+		lnan = False
+		intree = tree2.Node(file=nfintree, keep_comments=kc, leafNamesAsNum=lnan, **kw)
+	try:
+		checkBS(intree)
+	except ValueError:
+		print "could not find branch supports; try looking in comments field"
+		kc = False
+		intree = tree2.Node(file=nfintree, keep_comments=kc, leafNamesAsNum=lnan, **kw)
+		for n in intree:
+			if str(n.comment()).isdigit():
+				n.set_bs(float(n.comment()))
+		checkBS(intree)
+	return intree
 
 def read_multiple_newick(nf, treeclass="Node", **kw):
 	"""reads a multiple Newick file and returns a list of trees"""
