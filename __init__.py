@@ -75,7 +75,7 @@ def checkLeafLabel(tree, maxNone=0):
 		if node.label() is None: nnodenolab += 1
 	
 	if nnodenolab > maxNone:
-		raise ValueError, "too many (%d) leaf nodes without label"%nnodenobs
+		raise ValueError, "too many (%d) leaf nodes without label"%nnodenolab
 
 #######################################################################
 ########## file I/O functions
