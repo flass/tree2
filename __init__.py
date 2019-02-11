@@ -55,7 +55,7 @@ def updateappend(d1, d2):
 		if key in d1: d1[key] += d2[key]
 		else: d1[key] = d2[key]
 
-def checkBS(tree, maxNone=2):
+def checkBS(tree, maxNoBS=2, **kw):
 	"""count how many node have no branch support documented; raise an error when above threshold
 	
 	by default allow a maximum of 2 without support to account for branches created when rooting
@@ -65,16 +65,16 @@ def checkBS(tree, maxNone=2):
 		if node.is_leaf(): continue
 		if node.bs() is None: nnodenobs += 1
 	
-	if nnodenobs > maxNone:
+	if nnodenobs > maxNoBS:
 		raise ValueError, "too many (%d) nodes without branch support documented"%nnodenobs
 
-def checkLeafLabel(tree, maxNone=0):
+def checkLeafLabel(tree, maxNoLabel=0, **kw):
 	"""count how many leaf nodes have no labels; raise an error when above threshold (zero)"""
 	nnodenolab = 0
 	for node in tree.get_leaves():
 		if node.label() is None: nnodenolab += 1
 	
-	if nnodenolab > maxNone:
+	if nnodenolab > maxNoLabel:
 		raise ValueError, "too many (%d) leaf nodes without label"%nnodenolab
 
 #######################################################################
@@ -94,16 +94,16 @@ def read_check_newick(nfintree, treeclass="Node", **kw):
 		if op in kw: raise ValueError, "it is unsafe to specify the '%s' in this function"%op
 	intree = tc(file=nfintree, keep_comments=kc, leafNamesAsNum=lnan, **kw)
 	try:
-		checkLeafLabel(intree)
+		checkLeafLabel(intree, **kw)
 	except ValueError:
 		print "could not find a label for every leaf; try looking for digit-only names"
-		lnan = False
+		lnan = True
 		intree = tc(file=nfintree, keep_comments=kc, leafNamesAsNum=lnan, **kw)
 	try:
-		checkBS(intree)
+		checkBS(intree, **kw)
 	except ValueError:
 		print "could not find branch supports; try looking in comments field"
-		kc = False
+		kc = True
 		intree = tc(file=nfintree, keep_comments=kc, leafNamesAsNum=lnan, **kw)
 		for n in intree:
 			if str(n.comment()).isdigit():
