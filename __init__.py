@@ -55,10 +55,10 @@ def updateappend(d1, d2):
 		if key in d1: d1[key] += d2[key]
 		else: d1[key] = d2[key]
 
-def checkBS(tree, maxNoBS=2, **kw):
+def checkBS(tree, maxNoBS=4, **kw):
 	"""count how many node have no branch support documented; raise an error when above threshold
 	
-	by default allow a maximum of 2 without support to account for branches created when rooting
+	by default allow a maximum of 2 without support to account for branches created when rooting; negative value turns off Error raising, only a warning is printed.
 	"""
 	nnodenobs = 0
 	for node in tree:
@@ -66,16 +66,22 @@ def checkBS(tree, maxNoBS=2, **kw):
 		if node.bs() is None: nnodenobs += 1
 	
 	if nnodenobs > maxNoBS:
-		raise ValueError, "too many (%d) nodes without branch support documented"%nnodenobs
+		if maxNoBS<0:
+			print "%d nodes without branch support documented"%nnodenobs
+		else:
+			raise ValueError, "too many (%d) nodes without branch support documented"%nnodenobs
 
 def checkLeafLabel(tree, maxNoLabel=0, **kw):
-	"""count how many leaf nodes have no labels; raise an error when above threshold (zero)"""
+	"""count how many leaf nodes have no labels; raise an error when above threshold (zero); negative value turns off Error raising."""
 	nnodenolab = 0
 	for node in tree.get_leaves():
 		if node.label() is None: nnodenolab += 1
 	
 	if nnodenolab > maxNoLabel:
-		raise ValueError, "too many (%d) leaf nodes without label"%nnodenolab
+		if maxNoLabel<0:
+			print "%d leaf nodes without label"%nnodenolab
+		else:
+			raise ValueError, "too many (%d) leaf nodes without label"%nnodenolab
 
 #######################################################################
 ########## file I/O functions
