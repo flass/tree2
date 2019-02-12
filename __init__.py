@@ -105,6 +105,7 @@ def read_check_newick(nfintree, treeclass="Node", **kw):
 		print "could not find a label for every leaf; try looking for digit-only names"
 		lnan = True
 		intree = tc(file=nfintree, keep_comments=kc, leafNamesAsNum=lnan, **kw)
+		checkLeafLabel(intree, **kw)
 	try:
 		checkBS(intree, **kw)
 	except ValueError:
@@ -114,7 +115,7 @@ def read_check_newick(nfintree, treeclass="Node", **kw):
 		for n in intree:
 			if str(n.comment()).isdigit():
 				n.set_bs(float(n.comment()))
-		checkBS(intree)
+		checkBS(intree, **kw)
 	return intree
 
 def read_multiple_newick(nf, treeclass="Node", **kw):
