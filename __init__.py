@@ -295,19 +295,22 @@ def write_to_file(s, nf, **kw):
 	else:
 		raise ValueError, "Unvalid file name. Unable to write."
 
+def write_newick(tree, nfile, **kw):
+	write_to_file(tree.newick(**kw), nfile, **kw)
+
 def load_pickle(nfile):
-	"""loads a pickled tree2 object"""
+	"""load a pickled (tree2 or other) Python object"""
 	fpickle = open(nfile, 'r')
 	gtpickle = cPickle.Unpickler(fpickle)
-	genetree = gtpickle.load()
+	obj = gtpickle.load()
 	fpickle.close()
-	return genetree
+	return obj
 
-def dump_pickle(genetree, nfile):
-	"""dumps a tree2 object as pickle"""
+def dump_pickle(obj, nfile):
+	"""create a dump of a (tree2 or other) Python object into a binary pickle archive"""
 	fpickle = open(nfile, 'w')
 	gtpickle = cPickle.Pickler(fpickle, 2)
-	gtpickle.dump(genetree)
+	gtpickle.dump(obj)
 	fpickle.close()
 	
 #######################################################################
