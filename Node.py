@@ -180,10 +180,24 @@ class Node(object):
 				return t
 		if not mustMatch: return None
 		else: return IndexError, "no node label %s matched '%s' in tree"%(side, n)
+	
+	def prepare_fast_lookup(self):
+		"""create a static dictionary (i.e. cache) of labels to their respective nodes to avoid full tree search on later __getitem__ calls
+		
+		Ignores empty-string labels.
+		Needs refreshing whenever editiing the tree structure or labelling, otherwise will lead to WRONG responses.
+		"""
+		dlabel2nodes = {}
+		for node in self.preordertraversal_generator():
+			lab = node.__lab
+			if lab: dlabel2nodes[lab] = node
+		self.__label2nodes = dlabel2nodes		
 
 	def __getitem__(self,n):
 		"""<==> self[n]. Return the Node with input label. If input is an iterable returning labels or node objects, find their MRCA"""
 		if type(n) is str:
+			if hasattr(self, '__label2nodes'):
+				return self.__label2nodes.get(n, self.labelgetnode(n))
 			return self.labelgetnode(n)
 		#~ elif type(n) in (tuple, list):
 		elif hasattr(type(n), '__iter__'):
