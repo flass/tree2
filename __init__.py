@@ -150,7 +150,7 @@ def read_nexus(nf, treeclass="Node", returnDict=True, translateLabels=True, getT
 		lst = line.strip(' \t\n\r')
 		if allLower: lst = lst.lower()
 		if lst.startswith('#') or lst=='': continue
-		if lst.startswith('begin') and lst.endswith(';'): block = lst.rstrip(';').split('begin ')[1]
+		if lst.startswith('begin') and lst.endswith(';'): block = lst.rstrip(';').split('begin ')[1].lower()
 		if lst.startswith('end') and lst.endswith(';'): block = None
 		if (not labelrows) and ltax and getTaxLabels=='list': return ltax
 		if (not labelrows) and dtax and getTaxLabels=='dict': return dtax
