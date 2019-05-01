@@ -189,7 +189,7 @@ def read_nexus(nf, treeclass="Node", returnDict=True, translateLabels=True, getT
 						rootstatus = rootstatus.lstrip('[&').lower()
 					else:
 						rootstatus = None
-					if checkNewick: t = check_newick(tline, treeclass=treeclass, **kw)
+					if checkNewick: t = check_newick(nwk, treeclass=treeclass, **kw)
 					else: t = tc(newick=nwk, leafNamesAsNum=(len(dtax)>0), **kw)
 					# tag the tree for being originally unrooted or not (all Node objects are intrinsically rooted) for later writing back into the right form
 					t.unrooted = True if rootstatus=='u' else False
