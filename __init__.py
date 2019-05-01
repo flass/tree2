@@ -92,26 +92,31 @@ def read_newick(nf, treeclass="Node", **kw):
 	return tc(file=nf, **kw)
 
 def read_check_newick(nfintree, treeclass="Node", **kw):
+	with open(nfintree, 'r') as fintree:
+		tline = fintree.readline()
+	return check_newick(tline, treeclass=treeclass, **kw)
+		
+def check_newick(nwk, treeclass="Node", **kw):
+	for op in ['keep_comments', 'leafNamesAsNum']:
+		if op in kw: raise ValueError, "it is unsafe to specify the '%s' in this function"%op
 	tc = eval(treeclass)
 	if not issubclass(tc, Node): raise ValueError, "wrong tree class specification"
 	kc = False
 	lnan = False
-	for op in ['keep_comments', 'leafNamesAsNum']:
-		if op in kw: raise ValueError, "it is unsafe to specify the '%s' in this function"%op
-	intree = tc(file=nfintree, keep_comments=kc, leafNamesAsNum=lnan, **kw)
+	intree = tc(newick=nwk, keep_comments=kc, leafNamesAsNum=lnan, **kw)
 	try:
 		checkLeafLabel(intree, **kw)
 	except ValueError:
 		print "could not find a label for every leaf; try looking for digit-only names"
 		lnan = True
-		intree = tc(file=nfintree, keep_comments=kc, leafNamesAsNum=lnan, **kw)
+		intree = tc(newick=nwk, keep_comments=kc, leafNamesAsNum=lnan, **kw)
 		checkLeafLabel(intree, **kw)
 	try:
 		checkBS(intree, **kw)
 	except ValueError:
 		print "could not find branch supports; try looking in comments field"
 		kc = True
-		intree = tc(file=nfintree, keep_comments=kc, leafNamesAsNum=lnan, **kw)
+		intree = tc(newick=nwk, keep_comments=kc, leafNamesAsNum=lnan, **kw)
 		for n in intree:
 			if str(n.comment()).isdigit():
 				n.set_bs(float(n.comment()))
@@ -134,7 +139,7 @@ def read_multiple_newick(nf, treeclass="Node", **kw):
 		lt.append(t)
 	return lt	
 	
-def read_nexus(nf, treeclass="Node", returnDict=True, translateLabels=True, getTaxLabels=False, allLower=True, **kw):
+def read_nexus(nf, treeclass="Node", returnDict=True, translateLabels=True, getTaxLabels=False, allLower=True, checkNewick=False, **kw):
 	#~ tc = getattr(tree2, treeclass)
 	tc = eval(treeclass)
 	if not issubclass(tc, Node): raise ValueError, "wrong tree class specification"
@@ -184,7 +189,8 @@ def read_nexus(nf, treeclass="Node", returnDict=True, translateLabels=True, getT
 						rootstatus = rootstatus.lstrip('[&').lower()
 					else:
 						rootstatus = None
-					t = tc(newick=nwk, leafNamesAsNum=(len(dtax)>0), **kw)
+					if checkNewick: t = check_newick(tline, treeclass=treeclass, **kw)
+					else: t = tc(newick=nwk, leafNamesAsNum=(len(dtax)>0), **kw)
 					# tag the tree for being originally unrooted or not (all Node objects are intrinsically rooted) for later writing back into the right form
 					t.unrooted = True if rootstatus=='u' else False
 					#~ if treeclass=="Node": t = Node(newick=nwk, leafNamesAsNum=(len(dtax)>0), **kw)
