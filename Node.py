@@ -468,8 +468,8 @@ class Node(object):
 		order= 1: ordered by decreasing depth (i.e. increasing node distance from root).
 		order= 2: post-oder traversal (exploration of each group of leaves, then the nodes above ; compatible with Count's rate files node enumeration)
 		order= 3: post-oder traversal (exploration of each group of leaves, then the nodes above ; compatible with Count's rate files node enumeration) with always exploring the deepest node first
-		order= 4: mid-order traversal (first the left child(ren), then the father, then the right child(ren))
-		order= 5: mid-order traversal (first the right child(ren), then the father, then the left child(ren))
+		order= 4: mid-order (in-order) traversal (first the left child(ren), then the father, then the right child(ren))
+		order= 5: mid-order (in-order) traversal (first the right child(ren), then the father, then the left child(ren))
 		order= 6: post-oder traversal (exploration of each group of leaves, then the nodes above ; compatible with Count's rate files node enumeration) with always exploring the deepest node last
 		"""
 		if order in [-1, 1]:

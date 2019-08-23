@@ -54,14 +54,7 @@ def svgAddArrowMarkerDef(name='arrow', widthheight=None, color='red'):
 def getDictNodeCoords(tree, **kw):
 	"""generates coordinates of nodes in the tree for further drawing
 	
-	**kw (optional) arguments:
-	'interleaves' define spacing (y axis, in pixels) between leaves
-	'phylofact'   define the scaling factor (y axis) for the whole tree (from the tree distance metric into pixels)
-	'cladofact'   define the scaling factor (x axis) for the whole tree (from the tree 'interleaves' parameter)
-	'nodeoverlap' specify if the function must try to print branches in a non-overlaping fashion (default, True)
-	'offset'      tupple of x,y vector by which the position of all points is offset
-	'treeorder'   order of tree traversal defining the representation (see tree2.Node.get_sorted_children) 
-	              NB: noderowoverlap=True is only compatible with treeorder={2,3}
+	NB: noderowoverlap=True is only compatible with treeorder={2,3}
 	"""
 	cladogram = kw.get('cladogram', False)
 	interleaves = kw.get('interleaves', 20)
@@ -183,11 +176,14 @@ def svgPlotSize(dxy):
 	yend = max([xy[1] for xy in dxy.values()])
 	return xend, yend
 
-def svgEventLab(text, nodelab=None, dxy=None, x=None, y=None, orbit=(0, 0), style=None, fontsize=10, color=None, inCircle=False, circlecolor=None):
+def svgEventLab(text, tree=None, nodelab=None, dxy=None, x=None, y=None, fracbrheight=0.0, orbit=(0, 0), style=None, fontsize=10, color=None, inCircle=False, circlecolor=None):
 	"""add a label at a particular coordinate; particular handling of DTL event-type labels for colouring"""
 	xlab, ylab = (x, y)
 	if not xlab: xlab = dxy[nodelab][0]
 	if not ylab: ylab = dxy[nodelab][1]
+	if tree and fracbrheight:
+		fatx, faty = dxy[tree[nodelab].go_father().label()]
+		xlab = fatx+(xlab-fatx)*fracbrheight # re-postion along the branch
 	xml = ''
 	col = color if color else 'black'
 	# draw circular frame
@@ -210,24 +206,8 @@ def svgTree(tree, labels=True, supports=True, comment=None, fontsize=10, textorb
 	Keyword arguments 'duplications', 'transfers', and 'losses' allow to add tree decorators indicating the corresponding events;
 	they can be passed as lists of 2-tuples containing the node name and the frequency of the event for duplications and losses, and as 3-tuples for transfers (donor, receiver, freq).
 	Keyword argument 'counts' allow to add tree decorators indicating the copy number at the relevant tree node.
-	
-	Other **kw (optional) arguments passed on to svgNode.getDictNodeCoords:
-	
-	general graphic options:
-	'interleaves' define spacing (y axis, in pixels) between leaves
-	'phylofact'   define the scaling factor (y axis) for the whole tree (from the tree distance metric into pixels)
-	'cladofact'   define the scaling factor (x axis) for the whole tree (from the tree 'interleaves' parameter)
-	'nodeoverlap' specify if the function must try to print branches in a non-overlaping fashion (default, True)
-	'offset'      tupple of x,y vector by which the position of all points is offset
-	'treeorder'   order of tree traversal defining the representation (see tree2.Node.get_sorted_children) 
-	              NB: noderowoverlap=True is only compatible with treeorder={2,3}
-	              
-	 HGT-specific graphic options:
-	'transfercolor'      colour of transfer edges 
-	'transferpathtype'   'arc' or 'line' (default)
-	'transferwidth'      width of transfer edges
 	"""
-	brwidthfac = 10
+	brwidthfac = 5.0
 	
 	xml = ''
 	dnodestyle = kw.get('dnodestyle', {})
@@ -241,8 +221,9 @@ def svgTree(tree, labels=True, supports=True, comment=None, fontsize=10, textorb
 	if 'transfers' in kw:
 		# prepare for tracing of transfer arrows
 		xml += svgAddArrowMarkerDef(name='arrow')
-		transfercol = kw.get('transfercolor', (0,0,0))
-		transfercol = transfercol if isinstance(transfercol, str) else hexrgb(transfercol)
+		transfercol = kw.get('transfercolor')
+		if not isinstance(transfercol, str):
+			transfercol = hexrgb(transfercol) if isinstance(transfercol, tuple) else None
 		transpathtype = kw.get('transferpathtype', 'arc')
 		transferwidth = kw.get('transferwidth')
 	if dnodecoord: dxy = dnodecoord
@@ -255,10 +236,15 @@ def svgTree(tree, labels=True, supports=True, comment=None, fontsize=10, textorb
 			if branchwidthattr: nodebw = getattr(node, branchwidthattr, 0)
 			elif dbranchwidth: nodebw = dbranchwidth.get(node.label(), 0)
 			if nodebw:
-				# only draw branches with some thichness
+				# only draw branches with some thickness
 				nodecol = getattr(node, '_AnnotatedNode__color', 'grey')
-				nodecols = nodecol if isinstance(nodecol, str) else hexrgb(nodecol)
-				widstyle = "stroke:%s; stroke-width:%f; fill:none; stroke-linejoin:round; stroke-linecap:round; "%(nodecols, nodebw*brwidthfac)
+				if isinstance(nodecol, str):
+					nodecols = nodecol
+				elif nodecol:
+					nodecols = hexrgb(nodecol)
+				else:
+					nodecols = 'grey'
+				widstyle = "stroke:%s; stroke-width:%f; fill:none; stroke-linejoin:round; stroke-linecap:round; "%(nodecols, (nodebw*brwidthfac))
 				xml += svgPathToFather(node, dxy, style=widstyle)
 	# (then) a tree with simple solid branches
 	for node in tree.get_sorted_children(order=treeorder):
@@ -304,39 +290,40 @@ def svgTree(tree, labels=True, supports=True, comment=None, fontsize=10, textorb
 	
 	# plot DTL events
 	if kw.get('treetype')=='species':
-		# count number of events per node; allow to increment height of event logo representation on the branch (orbit on x axis) so they do not overlap.
-		# not ideal as events are arbitrarily ordred instead of time-ordered.
-		# instead of this increment, the height can be set from an additional member (positioned last) of the event descriptor tupple 
-		nnodeevts = {} 
-		for te in kw.get('transfers', []):
-			print te
-			don, rec, freq = te[:3]
-			if len(te)>3: hev = te[4]
-			else: hev = nnodeevts.setdefault(rec, 0)*5
+		nnodeevts = {}
+		knodeevts = {}
+		# first count the total number of events to represent on each branch,
+		# to define the fraction of branch where to plot them
+		# (add +2 so the fraction 0/N and N/N can be avoided)
+		for don, rec, freq in kw.get('transfers', []):
+#			nnodeevts[don] = nnodeevts.setdefault(don, 2.0) + 1.0
+			nnodeevts[rec] = nnodeevts.setdefault(rec, 2.0) + 1.0
+		for nodelab, freq in kw.get('duplications', []):
+			nnodeevts[nodelab] = nnodeevts.setdefault(nodelab, 2.0) + 1.0
+		for nodelab, freq in kw.get('losses', []):
+			nnodeevts[nodelab] = nnodeevts.setdefault(nodelab, 2.0) + 1.0
+		# then write the event XMl block and increment the count of writen ones
+		for don, rec, freq in kw.get('transfers', []):
 			transcol = transfercol if transfercol else randRGBColGen({'G':(0.0, 0.6)})
 			if not transferwidth:
 				transwid = 2.0*brwidthfac
 			elif transferwidth=='freq':
-				transwid = freq*brwidthfac
+				transwid = 1.0+freq*brwidthfac
 			else:
-				transwid = transferwidth*brwidthfac
-			xml += svgTransfer(don, rec, dxy, tree, marker=None, color=transcol, width=transwid, orbit=(hev, 0), arc=(transpathtype=='arc'))
-			nnodeevts[rec] += 1
+				transwid = 1.0+transferwidth*brwidthfac
+			xml += svgTransfer(don, rec, dxy, tree, marker=None, color=transcol, width=transwid, arc=(transpathtype=='arc'),
+							    donbrheight=knodeevts.setdefault(don, 1.0)/nnodeevts.setdefault(don, 2.0), recbrheight=knodeevts.setdefault(rec, 1.0)/nnodeevts[rec])
+#			knodeevts[don] += 1.0
+			knodeevts[rec] += 1.0
 			#~ xml += svgEventLab('%.2f'%freq, x=dxy[rec][0], y=dxy[rec][1], color=tcol)
-		for de in kw.get('duplications', []):
-			nodelab, freq = de[:2]
-			if len(de)>2: hev = de[3]
-			else: hev = nnodeevts.setdefault(nodelab, 0)*5
-			xml += svgEventLab('D', nodelab=nodelab, dxy=dxy, inCircle=True, orbit=(hev, 0))
+		for nodelab, freq in kw.get('duplications', []):
+			xml += svgEventLab('D', nodelab=nodelab, tree=tree, dxy=dxy, inCircle=True, fracbrheight=knodeevts.setdefault(nodelab, 1.0)/nnodeevts[nodelab])
 			#~ xml += svgEventLab('%.2f'%freq, nodelab=nodelab, dxy=dxy, textorbit=10)
-			nnodeevts[nodelab] += 1
-		for le in kw.get('losses', []):
-			nodelab, freq = le[:2]
-			if len(le)>2: hev = le[3]
-			else: hev = nnodeevts.setdefault(nodelab, 0)*5
-			xml += svgEventLab('L', nodelab=nodelab, dxy=dxy, inCircle=True, orbit=(hev, 0))
+			knodeevts[nodelab] = knodeevts.setdefault(nodelab, 0.0) + 1.0
+		for nodelab, freq in kw.get('losses', []):
+			xml += svgEventLab('L', nodelab=nodelab, tree=tree, dxy=dxy, inCircle=True, fracbrheight=knodeevts.setdefault(nodelab, 1.0)/nnodeevts[nodelab])
 			#~ xml += svgEventLab('%.2f'%freq, nodelab=nodelab, dxy=dxy, textorbit=10)
-			nnodeevts[nodelab] += 1
+			knodeevts[nodelab] = knodeevts.setdefault(nodelab, 0.0) + 1.0
 		for nodelab, freq in kw.get('counts', []):
 			#~ xml += svgEventLab('%d'%int(round(freq)), nodelab=nodelab, x=xlab+50, dxy=dxy, inCircle=True)
 			for k in range(int(round(freq))):
