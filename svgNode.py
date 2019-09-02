@@ -147,8 +147,10 @@ def svgTransfer(don, rec, dxy, tree, donbrheight=.5, recbrheight=.5, style=None,
 	else: st = style
 	donx, dony = dxy[don]
 	recx, recy = dxy[rec]
-	recfatx, recfaty = dxy[tree[rec].go_father().label()]
-	donfatx, donfaty = dxy[tree[don].go_father().label()]
+	recfat = tree[rec].go_father()
+	donfat = tree[don].go_father()
+	recfatx, recfaty = dxy[recfat.label() if recfat else rec]
+	donfatx, donfaty = dxy[donfat.label() if donfat else don]
 	depxy = (donfatx+(donx-donfatx)*donbrheight, dony) # startpoint of transfer
 	arrxy = (recfatx+(recx-recfatx)*recbrheight, recy) # endpoint of transfer
 	xml  = svgPathAB(depxy, arrxy, style=st, marker=marker, bezier=((arrxy[0]-depxy[0]) if arc else False), borbit=orbit)
