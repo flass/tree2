@@ -58,7 +58,8 @@ def updateappend(d1, d2):
 def checkBS(tree, maxNoBS=4, **kw):
 	"""count how many node have no branch support documented; raise an error when above threshold
 	
-	by default allow a maximum of 2 without support to account for branches created when rooting; negative value turns off Error raising, only a warning is printed.
+	by default allow a maximum of 2 without support to account for branches created when rooting;
+	negative value turns off Error raising, only a warning is printed (turned off when verbose=False).
 	"""
 	nnodenobs = 0
 	for node in tree:
@@ -67,7 +68,7 @@ def checkBS(tree, maxNoBS=4, **kw):
 	
 	if nnodenobs > maxNoBS:
 		if maxNoBS<0:
-			print "%d nodes without branch support documented"%nnodenobs
+			if kw.get('verbose', True): print "%d nodes without branch support documented"%nnodenobs
 		else:
 			raise ValueError, "too many (%d) nodes without branch support documented"%nnodenobs
 
