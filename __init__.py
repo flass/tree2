@@ -68,7 +68,9 @@ def checkBS(tree, maxNoBS=4, **kw):
 	
 	if nnodenobs > maxNoBS:
 		if maxNoBS<0:
-			if kw.get('verbose', True): print "%d nodes without branch support documented"%nnodenobs
+			if kw.get('verbose', True):
+				print "%d nodes without branch support documented"%nnodenobs
+				return nnodenobs
 		else:
 			raise ValueError, "too many (%d) nodes without branch support documented"%nnodenobs
 
@@ -113,15 +115,13 @@ def check_newick(nwk, treeclass="Node", **kw):
 		intree = tc(newick=nwk, keep_comments=kc, leafNamesAsNum=lnan, **kw)
 		checkLeafLabel(intree, **kw)
 	try:
-		checkBS(intree, **kw)
+		checkBS(intree)
 	except ValueError:
 		print "could not find branch supports; try looking in comments field"
 		kc = True
-		intree = tc(newick=nwk, keep_comments=kc, leafNamesAsNum=lnan, **kw)
-		for n in intree:
-			if str(n.comment()).isdigit():
-				n.set_bs(float(n.comment()))
+		intree = tc(newick=nwk, keep_comments=kc, leafNamesAsNum=lnan, bootInComm=True, **kw)
 		checkBS(intree, **kw)
+		print "found branch support in comments"
 	return intree
 
 def read_multiple_newick(nf, treeclass="Node", **kw):

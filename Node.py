@@ -2754,7 +2754,7 @@ class Node(object):
 				self.__children+=[self.newnode()]
 				for j in self.__children:
 					j.__father=self
-				self.__children[len(self.__children)-1]._parser(child, branch_lengths=branch_lengths, keep_comments=keep_comments, combrackets=combrackets, labquotes=labquotes, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum)
+				self.__children[len(self.__children)-1]._parser(child, branch_lengths=branch_lengths, keep_comments=keep_comments, combrackets=combrackets, labquotes=labquotes, namesAsNum=namesAsNum, leafNamesAsNum=leafNamesAsNum, bootInComm=bootInComm)
 				#print "***********Going to the children*************"
 				i+=1
 		# annotate node

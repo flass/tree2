@@ -326,10 +326,12 @@ def svgTree(tree, labels=True, supports=True, comment=None, fontsize=10, textorb
 			xml += svgEventLab('L', nodelab=nodelab, tree=tree, dxy=dxy, inCircle=True, fracbrheight=knodeevts.setdefault(nodelab, 1.0)/nnodeevts[nodelab])
 			#~ xml += svgEventLab('%.2f'%freq, nodelab=nodelab, dxy=dxy, textorbit=10)
 			knodeevts[nodelab] = knodeevts.setdefault(nodelab, 0.0) + 1.0
-		for nodelab, freq in kw.get('counts', []):
+		llabcount = kw.get('counts', [])
+		maxlablen = max([len(nodelab) for nodelab, freq in llabcount]) ; print maxlablen
+		for nodelab, freq in llabcount:
 			#~ xml += svgEventLab('%d'%int(round(freq)), nodelab=nodelab, x=xlab+50, dxy=dxy, inCircle=True)
 			for k in range(int(round(freq))):
-				xml += svgEventLab('#', nodelab=nodelab, x=xlab+70+(k*15), dxy=dxy, inCircle=True)
+				xml += svgEventLab('#', nodelab=nodelab, x=xlab+(maxlablen*10)+20+(k*15), dxy=dxy, inCircle=True)
 	if kw.get('treetype')=='reconciliation':
 		for nodelab, freq in kw.get('transfers', []):
 			xml += svgEventLab('T', nodelab=nodelab, dxy=dxy, inCircle=True)
