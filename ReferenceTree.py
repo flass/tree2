@@ -696,7 +696,7 @@ class ReferenceTree(tree2.AnnotatedNode):
 			print "file %s contains info about several families, cannot extract node-spcific event counts"%nfoutput
 			dnodeevents = None
 		foutput.close()
-		self.checkGainLossPresenceCoherence()
+		self.checkGainLossPresenceCoherence() #coherence (French) => consistency
 		return dnodeevents
 		
 	def	readCountPosteriors(self, nfoutput, **kw):
@@ -714,7 +714,8 @@ class ReferenceTree(tree2.AnnotatedNode):
 		print line
 		results = [float(p) for p in line.strip('\n').split('\t')[1:]]
 		features = ['1', 'm', 'gain', 'loss', 'expansion', 'reduction']
-		dresults = dict(zip(features, [{}]*len(features)))
+		# dresults = dict(zip(features, [{}]*len(features))) # completely WRONG! all features dictionaries are linked!
+		dresults = dict(zip(features, [{} for ft in features]))
 		for i, col in enumerate(header):
 			if not ':' in col:
 				# family category assignment
