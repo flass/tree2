@@ -1806,7 +1806,11 @@ class Node(object):
 			else:
 				f=f.go_father()
 		else:
-			return False	
+			return False
+	
+	def is_parent(self, node1):
+		"""returns bollean stating if the Node is above node1 in the tree"""
+		return node1.is_child(self)
 				
 	def is_parent_of_any(self, lnodes, returnList=False):
 		lchild = []
@@ -2299,7 +2303,7 @@ class Node(object):
 				else:
 					raise ValueError, "Node %s not in his father's child list"%self.__lab
 			else:
-				raise ValueError, "Node %s's father has %s child(ren): go_brother() is not determined"%(self.label(),len(c))
+				raise ValueError, "Node %s's father has %d child(ren): go_brother() is not determined"%(self.label(),len(c))
 		else:
 			raise ValueError, "Node %s has no father"%self.__lab
 			
